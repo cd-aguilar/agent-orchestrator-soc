@@ -1,0 +1,25 @@
+# Secretos - NUNCA subir esto al repo
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Vector store generado localmente (se reconstruye con ingest_kb.py)
+chroma_db/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
