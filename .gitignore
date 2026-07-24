@@ -23,3 +23,6 @@ chroma_db/
 # OS
 .DS_Store
 Thumbs.db
+
+# Residuo de una reparación del repo git (podés borrarlo desde el Explorador)
+.git-broken/
