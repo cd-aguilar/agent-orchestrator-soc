@@ -7,8 +7,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Ollama corre en un contenedor aparte (ver docker-compose.yml) y se
-# consulta vía red interna en http://ollama:11434
+# Ollama runs in a separate container (see docker-compose.yml) and is
+# reached over the internal network at http://ollama:11434
 ENV OLLAMA_HOST=http://ollama:11434
 
 CMD ["python", "orchestrator.py"]

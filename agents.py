@@ -1,10 +1,10 @@
 """
-Define el estado compartido y los nodos (agentes) del grafo de orquestación.
+Defines the shared state and the nodes (agents) of the orchestration graph.
 
-Patrón: Supervisor-Worker.
-Un agente "supervisor" no ejecuta trabajo directamente: decide qué agente
-especializado debe actuar a continuación, en base al estado acumulado.
-Cada worker hace UNA cosa bien y devuelve su resultado al estado compartido.
+Pattern: Supervisor-Worker.
+A "supervisor" agent doesn't do work itself: it decides which specialized
+agent should act next, based on the accumulated state. Each worker does
+ONE thing well and writes its result back to the shared state.
 """
 
 import os
@@ -18,30 +18,30 @@ from tools import enrich_ioc, get_host_criticality
 
 PERSIST_DIR = Path(__file__).parent / "chroma_db"
 
-# En local usa http://localhost:11434. En docker-compose, la variable
-# OLLAMA_HOST se sobreescribe a http://ollama:11434 (ver docker-compose.yml).
+# Locally this defaults to http://localhost:11434. In docker-compose,
+# OLLAMA_HOST is overridden to http://ollama:11434 (see docker-compose.yml).
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 
-# Modelo local vía Ollama. Cambia "llama3.1" por el modelo que tengas descargado.
+# Local model via Ollama. Swap "llama3.1" for whichever model you've pulled.
 llm = ChatOllama(model="llama3.1", temperature=0, base_url=OLLAMA_HOST)
 
 
-# --- Estado compartido entre agentes -----------------------------------------
+# --- Shared state between agents ---------------------------------------------
 class TriageState(TypedDict):
-    alert_raw: str          # alerta cruda de entrada (log, EDR, SIEM)
-    enrichment: str         # resultado del agente de enriquecimiento
-    research: str           # resultado del agente de investigación (RAG)
-    report: str             # informe final
-    next_step: str          # decisión de enrutamiento del supervisor
+    alert_raw: str          # raw incoming alert (log, EDR, SIEM)
+    enrichment: str         # result from the enrichment agent
+    research: str           # result from the research agent (RAG)
+    report: str             # final report
+    next_step: str          # supervisor's routing decision
 
 
-# --- Agente Supervisor ---------------------------------------------------
+# --- Supervisor agent ---------------------------------------------------
 def supervisor_node(state: TriageState) -> dict:
-    """Decide el siguiente paso del pipeline. En este ejemplo el flujo es lineal
-    y determinista (enrich -> research -> report), pero aquí es donde
-    introducirías lógica condicional real (p. ej. saltar research si la
-    alerta ya viene enriquecida, o pedir intervención humana si la
-    confianza es baja)."""
+    """Decides the next step in the pipeline. In this example the flow is
+    linear and deterministic (enrich -> research -> report), but this is
+    where you'd introduce real conditional logic (e.g. skip research if the
+    alert already arrives enriched, or request human intervention when
+    confidence is low)."""
     if not state.get("enrichment"):
         return {"next_step": "enrichment"}
     if not state.get("research"):
@@ -55,14 +55,14 @@ def route_after_supervisor(state: TriageState) -> Literal["enrichment", "researc
     return state["next_step"]  # type: ignore[return-value]
 
 
-# --- Agente de Enriquecimiento (tool calling) --------------------------------
+# --- Enrichment agent (tool calling) --------------------------------
 def enrichment_node(state: TriageState) -> dict:
     llm_with_tools = llm.bind_tools([enrich_ioc, get_host_criticality])
     prompt = (
-        "Eres un analista SOC de nivel 1. Extrae los indicadores relevantes "
-        "(IPs, puertos, hostnames) de la siguiente alerta y usa las "
-        "herramientas disponibles para enriquecerlos.\n\n"
-        f"Alerta:\n{state['alert_raw']}"
+        "You are a tier-1 SOC analyst. Extract the relevant indicators "
+        "(IPs, ports, hostnames) from the following alert and use the "
+        "available tools to enrich them.\n\n"
+        f"Alert:\n{state['alert_raw']}"
     )
     response = llm_with_tools.invoke(prompt)
 
@@ -73,10 +73,10 @@ def enrichment_node(state: TriageState) -> dict:
         elif call["name"] == "get_host_criticality":
             results.append(get_host_criticality.invoke(call["args"]))
 
-    return {"enrichment": "\n".join(results) if results else "Sin IOCs claros para enriquecer."}
+    return {"enrichment": "\n".join(results) if results else "No clear IOCs to enrich."}
 
 
-# --- Agente de Investigación (RAG sobre tu base de conocimiento) -------------
+# --- Research agent (RAG over your knowledge base) -------------
 def research_node(state: TriageState) -> dict:
     embeddings = OllamaEmbeddings(model="nomic-embed-text", base_url=OLLAMA_HOST)
     vectorstore = Chroma(persist_directory=str(PERSIST_DIR), embedding_function=embeddings)
@@ -86,26 +86,27 @@ def research_node(state: TriageState) -> dict:
     context = "\n---\n".join(d.page_content for d in relevant_docs)
 
     prompt = (
-        "Eres un analista de detección. Con base en el siguiente contexto de "
-        "tu base de conocimiento (runbooks, notas MITRE ATT&CK), identifica qué "
-        "técnica(s) ATT&CK corresponden a la alerta y qué acción recomienda el playbook.\n\n"
-        f"Contexto:\n{context}\n\n"
-        f"Alerta:\n{state['alert_raw']}"
+        "You are a detection analyst. Based on the following context from "
+        "your knowledge base (runbooks, MITRE ATT&CK notes), identify which "
+        "ATT&CK technique(s) match the alert and what action the playbook "
+        "recommends.\n\n"
+        f"Context:\n{context}\n\n"
+        f"Alert:\n{state['alert_raw']}"
     )
     response = llm.invoke(prompt)
     return {"research": response.content}
 
 
-# --- Agente de Reporte --------------------------------------------------
+# --- Report agent --------------------------------------------------
 def report_node(state: TriageState) -> dict:
     prompt = (
-        "Redacta un informe de triage de seguridad conciso y accionable, en español, "
-        "con estas secciones: Resumen, Severidad (Low/Medium/High/Critical), "
-        "Indicadores enriquecidos, Técnicas MITRE ATT&CK identificadas, y "
-        "Acción recomendada.\n\n"
-        f"Alerta original:\n{state['alert_raw']}\n\n"
-        f"Enriquecimiento:\n{state['enrichment']}\n\n"
-        f"Investigación:\n{state['research']}"
+        "Write a concise, actionable security triage report with these "
+        "sections: Summary, Severity (Low/Medium/High/Critical), Enriched "
+        "Indicators, Identified MITRE ATT&CK Techniques, and Recommended "
+        "Action.\n\n"
+        f"Original alert:\n{state['alert_raw']}\n\n"
+        f"Enrichment:\n{state['enrichment']}\n\n"
+        f"Research:\n{state['research']}"
     )
     response = llm.invoke(prompt)
     return {"report": response.content}

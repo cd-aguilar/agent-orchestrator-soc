@@ -1,17 +1,21 @@
 # TODO
 
-## Pendiente
-- [ ] Reemplazar `data/mitre_notes.md` por base de conocimiento real
-- [ ] Conectar `enrich_ioc` a una API real (VirusTotal/AbuseIPDB/OTX) o a MCP propio
-- [ ] Trigger vía n8n (webhook SIEM/Elastic) + publicación del informe (Slack/Obsidian)
-- [ ] Nodo de aprobación humana antes de acciones destructivas
-- [ ] Set de regresión (alerta, informe) para evaluar cambios de prompt/modelo
-- [ ] Inicializar git + subir a GitHub como pieza de portfolio (con GIF de la ejecución)
+## Pending
+- [ ] Replace `data/mitre_notes.md` with a real knowledge base
+- [ ] Connect `enrich_ioc` to a real API (VirusTotal/AbuseIPDB/OTX) or a custom MCP server
+- [ ] Real trigger via n8n (SIEM/Elastic webhook) + report publishing (Slack/Obsidian)
+- [ ] Human-approval node before destructive actions
+- [ ] Regression set (alert, report) to evaluate prompt/model changes
+- [x] Initialize git + push to GitHub as a portfolio piece
+- [ ] Add a GIF of the pipeline running to the README
 
-## En progreso
+## In progress
 - [ ]
 
-## Finalizado
-- [x] Grafo supervisor-worker con LangGraph (enrichment, research, report)
-- [x] RAG local sobre `data/*.md` con Ollama + ChromaDB
-- [x] Threat intel simulado + criticidad de hosts (tools.py)
+## Done
+- [x] Supervisor-worker graph with LangGraph (enrichment, research, report)
+- [x] Local RAG over `data/*.md` with Ollama + ChromaDB
+- [x] Mocked threat intel + host criticality (tools.py)
+- [x] Docker + docker-compose (app + ollama)
+- [x] CI: lint (ruff), tests (pytest), Docker build
+- [x] Translate repo to English

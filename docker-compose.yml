@@ -8,7 +8,7 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    # GPU opcional: descomenta si tienes NVIDIA Container Toolkit
+    # Optional GPU: uncomment if you have the NVIDIA Container Toolkit
     # deploy:
     #   resources:
     #     reservations:

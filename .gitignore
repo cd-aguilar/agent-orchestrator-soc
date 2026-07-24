@@ -1,4 +1,4 @@
-# Secretos - NUNCA subir esto al repo
+# Secrets - NEVER push this to the repo
 .env
 *.env
 !.env.example
@@ -10,7 +10,7 @@ __pycache__/
 venv/
 *.egg-info/
 
-# Vector store generado localmente (se reconstruye con ingest_kb.py)
+# Locally generated vector store (rebuilt with ingest_kb.py)
 chroma_db/
 
 # Logs
@@ -24,5 +24,9 @@ chroma_db/
 .DS_Store
 Thumbs.db
 
-# Residuo de una reparación del repo git (podés borrarlo desde el Explorador)
+# Leftover from a git repo repair (safe to delete from File Explorer)
 .git-broken/
+
+# Test/lint caches
+.pytest_cache/
+.ruff_cache/

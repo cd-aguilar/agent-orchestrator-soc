@@ -1,13 +1,13 @@
 """
-Construye el índice vectorial (RAG) local a partir de data/*.md usando embeddings
-de Ollama y ChromaDB. Corre esto UNA vez (o cada vez que actualices tu base de
-conocimiento) antes de lanzar el orquestador.
+Builds the local vector index (RAG) from data/*.md using Ollama embeddings
+and ChromaDB. Run this ONCE (or whenever you update your knowledge base)
+before launching the orchestrator.
 
-Requisitos previos:
+Prerequisites:
     ollama pull nomic-embed-text
-    ollama pull llama3.1        # o el modelo que prefieras para los agentes
+    ollama pull llama3.1        # or whichever model you prefer for the agents
 
-Uso:
+Usage:
     python ingest_kb.py
 """
 
@@ -29,7 +29,7 @@ def main():
         docs_text.append(md_file.read_text(encoding="utf-8"))
 
     if not docs_text:
-        raise SystemExit(f"No se encontraron archivos .md en {DATA_DIR}")
+        raise SystemExit(f"No .md files found in {DATA_DIR}")
 
     splitter = MarkdownTextSplitter(chunk_size=500, chunk_overlap=50)
     chunks = splitter.create_documents(docs_text)
@@ -41,7 +41,7 @@ def main():
         embedding=embeddings,
         persist_directory=str(PERSIST_DIR),
     )
-    print(f"Índice creado con {len(chunks)} fragmentos en {PERSIST_DIR}")
+    print(f"Index built with {len(chunks)} chunks at {PERSIST_DIR}")
 
 
 if __name__ == "__main__":

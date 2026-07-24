@@ -1,16 +1,16 @@
 """
-Punto de entrada: arma el grafo (StateGraph) de LangGraph y ejecuta un caso
-de prueba de triage de una alerta de seguridad.
+Entry point: builds the LangGraph StateGraph and runs a sample security
+alert triage.
 
-Uso:
-    python ingest_kb.py     # una sola vez, para construir el índice RAG
-    python orchestrator.py  # ejecuta el pipeline multi-agente
+Usage:
+    python ingest_kb.py     # once, to build the RAG index
+    python orchestrator.py  # runs the multi-agent pipeline
 """
 
 from dotenv import load_dotenv
 
-load_dotenv()  # carga .env si existe (OLLAMA_HOST, futuras API keys, etc.)
-# Debe ejecutarse ANTES de importar agents, que lee OLLAMA_HOST al cargar el módulo.
+load_dotenv()  # loads .env if present (OLLAMA_HOST, future API keys, etc.)
+# Must run BEFORE importing agents, which reads OLLAMA_HOST at import time.
 
 from langgraph.graph import END, StateGraph  # noqa: E402
 
@@ -25,10 +25,10 @@ from agents import (  # noqa: E402
 
 SAMPLE_ALERT = """\
 [EDR ALERT] Host: WKS-FINANCE-07
-Proceso: powershell.exe -EncodedCommand JABzAD0ATgB...
-Proceso padre: winword.exe
-Conexión saliente detectada: 185.220.101.5:443
-Tráfico adicional interno: WKS-FINANCE-07 -> DC01:445
+Process: powershell.exe -EncodedCommand JABzAD0ATgB...
+Parent process: winword.exe
+Outbound connection detected: 185.220.101.5:443
+Additional internal traffic: WKS-FINANCE-07 -> DC01:445
 """
 
 
@@ -52,7 +52,7 @@ def build_graph():
             "end": END,
         },
     )
-    # Cada worker vuelve al supervisor para que decida el siguiente paso
+    # Each worker goes back to the supervisor so it can decide the next step
     graph.add_edge("enrichment", "supervisor")
     graph.add_edge("research", "supervisor")
     graph.add_edge("report", "supervisor")
@@ -74,7 +74,7 @@ def main():
     )
 
     print("\n" + "=" * 70)
-    print("INFORME DE TRIAGE")
+    print("TRIAGE REPORT")
     print("=" * 70)
     print(final_state["report"])
 

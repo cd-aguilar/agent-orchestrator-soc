@@ -1,33 +1,33 @@
 """
-Herramientas que los agentes pueden invocar.
-En producción, reemplaza enrich_ioc por llamadas reales a VirusTotal, AbuseIPDB,
-OTX AlienVault, o tu propio SIEM/Elastic vía API.
+Tools the agents can invoke.
+In production, replace enrich_ioc with real calls to VirusTotal, AbuseIPDB,
+OTX AlienVault, or your own SIEM/Elastic via API.
 """
 
 from langchain_core.tools import tool
 
-# Simulación de una base de reputación de IOCs. Sustitúyela por una API real.
+# Mocked IOC reputation database. Swap in a real API in production.
 _FAKE_INTEL_DB = {
-    "192.168.56.101": "IP interna. Sin reputación en feeds públicos (rango RFC1918).",
-    "445": "Puerto SMB. Frecuentemente abusado en movimiento lateral (T1021.002).",
-    "185.220.101.5": "IP asociada a nodo de salida Tor. Reputación: maliciosa (score 8/10).",
+    "192.168.56.101": "Internal IP. No reputation in public feeds (RFC1918 range).",
+    "445": "SMB port. Frequently abused in lateral movement (T1021.002).",
+    "185.220.101.5": "IP associated with a Tor exit node. Reputation: malicious (score 8/10).",
 }
 
 
 @tool
 def enrich_ioc(indicator: str) -> str:
-    """Consulta la reputación de un indicador de compromiso (IP, hash, dominio, puerto).
-    Devuelve contexto de threat intelligence sobre ese indicador."""
+    """Looks up the reputation of an indicator of compromise (IP, hash, domain, port).
+    Returns threat intelligence context for that indicator."""
     return _FAKE_INTEL_DB.get(
         indicator,
-        f"Sin coincidencias en feeds para '{indicator}'. Se recomienda revisión manual.",
+        f"No matches in feeds for '{indicator}'. Manual review recommended.",
     )
 
 
 @tool
 def get_host_criticality(hostname: str) -> str:
-    """Devuelve el nivel de criticidad de un host según el inventario de activos."""
+    """Returns the criticality level of a host based on the asset inventory."""
     critical_hosts = {"DC01", "SQL-PROD-01", "FILESERVER-HR"}
     if hostname.upper() in critical_hosts:
-        return f"{hostname} es un activo CRÍTICO (servidor de dominio/producción)."
-    return f"{hostname} es un endpoint estándar (criticidad baja/media)."
+        return f"{hostname} is a CRITICAL asset (domain/production server)."
+    return f"{hostname} is a standard endpoint (low/medium criticality)."

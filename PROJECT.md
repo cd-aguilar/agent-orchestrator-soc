@@ -1,59 +1,67 @@
-# PROJECT.md — Contexto para IA
+# PROJECT.md — Context for AI
 
-> Leer este archivo primero, completo, antes de explorar el repo o proponer cambios.
-> Si existe `AI/GlobalContext.md` en el workspace del usuario, leerlo también.
+> Read this file first, in full, before exploring the repo or proposing changes.
+> If `AI/GlobalContext.md` exists in the user's workspace, read that too.
 
-## Objetivo
-Sistema multi-agente (patrón supervisor-worker con LangGraph) para triage automático de
-alertas de seguridad: enriquece IOCs, busca contexto en una base de conocimiento local
-(RAG sobre notas MITRE/runbooks/HTB) y redacta un informe de triage con severidad y
-acción recomendada. Pieza de portfolio para roles de AI Engineer / Detection Engineer /
-Security Automation Engineer.
+## Goal
+Multi-agent system (supervisor-worker pattern with LangGraph) for automated
+security alert triage: enriches IOCs, searches a local knowledge base (RAG
+over MITRE/runbook/HTB notes), and writes a triage report with severity and
+recommended action. Portfolio piece for AI Engineer / Detection Engineer /
+Security Automation Engineer roles.
 
-## Alcance
-Incluye: grafo supervisor → enrichment (tool calling) → research (RAG) → report, 100%
-local (Ollama + ChromaDB), con datos de ejemplo (`data/mitre_notes.md`) y threat intel
-simulado (`tools.py`).
-No incluye todavía: APIs reales de threat intel (VirusTotal/AbuseIPDB/OTX), trigger real
-vía SIEM/n8n, humano-en-el-loop antes de acciones destructivas, evaluación con set de
-regresión. Ver Roadmap.
+## Scope
+Includes: supervisor graph → enrichment (tool calling) → research (RAG) →
+report, 100% local (Ollama + ChromaDB), with sample data
+(`data/mitre_notes.md`) and mocked threat intel (`tools.py`).
+Not yet included: real threat intel APIs (VirusTotal/AbuseIPDB/OTX), a real
+trigger via SIEM/n8n, human-in-the-loop before destructive actions,
+evaluation with a regression set. See Roadmap.
 
-## Arquitectura
-Supervisor decide el siguiente paso según el estado acumulado; cada worker hace una sola
-cosa (enrichment, research, report) y vuelve al supervisor. Diagrama completo en README.md.
+## Architecture
+The supervisor decides the next step based on accumulated state; each
+worker does exactly one thing (enrichment, research, report) and returns
+to the supervisor. Full diagram in README.md.
 
-## Decisiones clave
-- **LangGraph sobre un loop manual**: estado tipado explícito, ramificación condicional,
-  patrón usado en producción por equipos de AI Engineering.
-- **Ollama (modelo local), no una API externa**: costo cero y las alertas de seguridad
-  (dato sensible) nunca salen de la máquina — reutilizable en el stack del segundo cerebro.
-- **ChromaDB embebido**: cero infraestructura para el RAG local.
-- **Tool calling nativo, no parsing manual de prompts**: más confiable, mismo patrón que
-  se usa con MCP.
+## Key decisions
+- **LangGraph over a manual loop**: explicit typed state, conditional
+  branching, a pattern used in production by AI Engineering teams.
+- **Ollama (local model), not an external API**: zero cost, and security
+  alerts (sensitive data) never leave the machine — reusable across the
+  "second brain" stack.
+- **Embedded ChromaDB**: zero infrastructure for local RAG.
+- **Native tool calling, no manual prompt parsing**: more reliable, the
+  same pattern used with MCP.
 
-## Restricciones
-- El enrichment de IOCs es simulado (`_FAKE_INTEL_DB` en tools.py) — no reemplazar por
-  una API real sin agregar manejo de rate limits y `.env` para la key.
-- Sin humano-en-el-loop todavía: no conectar a acciones destructivas reales (aislar host,
-  bloquear IP) sin agregar ese nodo de aprobación primero.
+## Constraints
+- IOC enrichment is mocked (`_FAKE_INTEL_DB` in tools.py) — don't swap in
+  a real API without adding rate-limit handling and a `.env` for the key.
+- No human-in-the-loop yet: don't wire this up to real destructive
+  actions (isolate a host, block an IP) without adding that approval node
+  first.
 
 ## Roadmap
-- [ ] Reemplazar `data/mitre_notes.md` por notas reales (HTB, reglas Elastic, export del vault).
-- [ ] Conectar `tools.py` a APIs reales (VirusTotal, AbuseIPDB) o a servidores MCP propios.
-- [ ] Trigger real vía n8n (webhook desde SIEM/Elastic) + publicación del informe en Slack/Obsidian.
-- [ ] Nodo de "espera de aprobación humana" antes de acciones destructivas.
-- [ ] Set de regresión (alerta, informe) para medir calidad del triage ante cambios de prompt/modelo.
+- [ ] Replace `data/mitre_notes.md` with real notes (HTB, Elastic rules,
+      vault export).
+- [ ] Connect `tools.py` to real APIs (VirusTotal, AbuseIPDB) or to your
+      own MCP servers.
+- [ ] Real trigger via n8n (webhook from SIEM/Elastic) + publish the
+      report to Slack/Obsidian.
+- [ ] "Awaiting human approval" node before destructive actions.
+- [ ] Regression set (alert, report) to measure triage quality across
+      prompt/model changes.
 
-## Pendientes
-Ver TODO.md
+## Open items
+See TODO.md
 
-## Tecnologías
-Python, LangGraph, LangChain (langchain-ollama, langchain-chroma), Ollama (llama3.1 +
-nomic-embed-text), ChromaDB.
+## Technologies
+Python, LangGraph, LangChain (langchain-ollama, langchain-chroma), Ollama
+(llama3.1 + nomic-embed-text), ChromaDB.
 
-## Reglas del proyecto
-- Nunca commitear `chroma_db/` (índice derivado, se reconstruye con `ingest_kb.py`).
-- Cuando se conecten APIs reales de threat intel, la key va en `.env` (ver `.env.example`),
-  nunca hardcodeada en `tools.py`.
-- Todo cambio de arquitectura relevante se documenta acá, en "Decisiones clave".
+## Project rules
+- Never commit `chroma_db/` (derived index, rebuilt with `ingest_kb.py`).
+- Once real threat intel APIs are connected, the key goes in `.env` (see
+  `.env.example`), never hardcoded in `tools.py`.
+- Any relevant architecture change gets documented here, under "Key
+  decisions".
 - Commits: Conventional Commits (feat:, fix:, docs:, chore:).

@@ -1,18 +1,21 @@
-# Seguridad
+# Security
 
-## Contexto
-Este proyecto procesa alertas de seguridad y IOCs. Hoy corre 100% local (Ollama +
-ChromaDB simulado), pero el roadmap prevé conectar APIs reales de threat intel y,
-eventualmente, acciones sobre hosts reales (aislar, bloquear IP).
+## Context
+This project processes security alerts and IOCs. Today it runs 100%
+locally (Ollama + mocked threat intel), but the roadmap includes
+connecting real threat intel APIs and, eventually, actions against real
+hosts (isolate, block IP).
 
-## Buenas prácticas a mantener
-- Ninguna key de threat intel real hardcodeada — usar `.env` (ver `.env.example`) apenas
-  se reemplace `_FAKE_INTEL_DB` por una API real.
-- No conectar ningún nodo que ejecute acciones destructivas (aislamiento de host, bloqueo
-  de IP, etc.) sin un nodo de aprobación humana antes — este es un requisito de diseño,
-  no solo una buena práctica, para un agente que opera sobre infraestructura de seguridad real.
-- Si en algún momento se ingiere contenido real de HTB en `data/`, aplicar la misma regla
-  que en `_rag_project`: nunca subir ese contenido a un repo público.
+## Practices to maintain
+- No real threat intel key ever hardcoded — use `.env` (see
+  `.env.example`) as soon as `_FAKE_INTEL_DB` gets replaced with a real
+  API.
+- Don't wire up any node that performs destructive actions (host
+  isolation, IP blocking, etc.) without a human-approval node in front of
+  it — this is a design requirement, not just a best practice, for an
+  agent that operates on real security infrastructure.
+- If real HTB content ever gets ingested into `data/`, apply the same
+  rule as in `_rag_project`: never publish that content to a public repo.
 
-## Reportar un problema
-Abrir un issue privado o contactar a cdario.a@gmail.com.
+## Reporting an issue
+Open a private issue or contact cdario.a@gmail.com.

@@ -1,74 +1,74 @@
 # SOC Agent Orchestrator
 
-Sistema multi-agente para triage automático de alertas de seguridad, construido
-con **LangGraph** (orquestación), **Ollama** (LLM local) y **ChromaDB** (RAG
-sobre tu propia base de conocimiento: notas MITRE ATT&CK, runbooks, writeups
-de HTB, reglas de Elastic, etc.).
+Multi-agent system for automated security alert triage, built with
+**LangGraph** (orchestration), **Ollama** (local LLM), and **ChromaDB**
+(RAG over your own knowledge base: MITRE ATT&CK notes, runbooks, HTB
+writeups, Elastic detection rules, etc.).
 
-Pensado como pieza de portafolio para roles de **AI Engineer / Detection
-Engineer / Security Automation Engineer**, y como base reutilizable para tu
-"segundo cerebro" (mismo stack: Ollama + ChromaDB + LangChain).
+Built as a portfolio piece for **AI Engineer / Detection Engineer /
+Security Automation Engineer** roles, and as a reusable base for a local
+"second brain" (same stack: Ollama + ChromaDB + LangChain).
 
-## Arquitectura
+## Architecture
 
 ```
               ┌──────────────┐
      ┌───────▶│  Supervisor  │◀───────┐
      │        └──────┬───────┘        │
-     │               │ decide         │
-     │      siguiente paso            │
+     │               │ decides        │
+     │            next step           │
 ┌────┴─────┐   ┌─────┴──────┐   ┌─────┴─────┐
 │Enrichment│   │  Research  │   │  Report   │
 │  (tools) │   │   (RAG)    │   │  (LLM)    │
 └──────────┘   └────────────┘   └───────────┘
 ```
 
-Patrón **supervisor-worker**: el supervisor no hace trabajo, solo decide qué
-agente actúa después según el estado acumulado. Cada worker hace una sola
-cosa:
+**Supervisor-worker** pattern: the supervisor doesn't do any work itself —
+it only decides which agent acts next based on the accumulated state. Each
+worker does exactly one thing:
 
-- **Enrichment** — usa *tool calling* para extraer IOCs de la alerta y
-  consultarlos contra un feed de threat intel (simulado; reemplázalo por
-  VirusTotal/AbuseIPDB/OTX/tu SIEM).
-- **Research (RAG)** — busca en tu base de conocimiento local (ChromaDB) el
-  contexto relevante (técnicas MITRE, playbooks) para esa alerta.
-- **Report** — redacta el informe final de triage con severidad y acción
-  recomendada.
+- **Enrichment** — uses *tool calling* to extract IOCs from the alert and
+  look them up against a threat intel feed (mocked here; swap in
+  VirusTotal/AbuseIPDB/OTX/your SIEM).
+- **Research (RAG)** — searches your local knowledge base (ChromaDB) for
+  relevant context (MITRE techniques, playbooks) for that alert.
+- **Report** — writes the final triage report with severity and
+  recommended action.
 
-Este patrón escala: puedes añadir más agentes (DFIR, consulta a Elastic,
-generación de reglas de detección) sin tocar los existentes, solo conectando
-nuevos nodos al grafo.
+This pattern scales: you can add more agents (DFIR, Elastic queries,
+detection-rule generation) without touching the existing ones, just by
+wiring new nodes into the graph.
 
-## Por qué este stack
+## Why this stack
 
-| Decisión | Razón |
+| Decision | Reason |
 |---|---|
-| LangGraph en vez de un loop manual | Estado tipado explícito, ramificación condicional, fácil de depurar y extender — es lo que usan en producción los equipos de AI Engineering, buena señal en portafolio |
-| Ollama (modelo local) | Costo cero, datos sensibles (alertas de seguridad) nunca salen de tu máquina, reutilizable en tu segundo cerebro |
-| ChromaDB | Ligero, embebido, cero infraestructura — ideal para RAG local |
-| Tool calling nativo en vez de prompts con parsing manual | Más confiable, es el patrón que usarás en cualquier stack de agentes en producción (también aplica a MCP) |
+| LangGraph over a manual loop | Explicit typed state, conditional branching, easy to debug and extend — the pattern used in production by AI Engineering teams, a good signal for a portfolio |
+| Ollama (local model) | Zero cost, sensitive data (security alerts) never leaves your machine, reusable across your "second brain" stack |
+| ChromaDB | Lightweight, embedded, zero infrastructure — ideal for local RAG |
+| Native tool calling instead of manual prompt parsing | More reliable, the same pattern you'll use in any production agent stack (also applies to MCP) |
 
-## Cómo correrlo
+## How to run it
 
-### Opción A: local (Python + venv)
+### Option A: local (Python + venv)
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt   # incluye ruff y pytest
-cp .env.example .env                  # completa claves si vas a usar APIs reales
+pip install -r requirements-dev.txt   # includes ruff and pytest
+cp .env.example .env                  # fill in keys if you're using real APIs
 
 ollama pull llama3.1
 ollama pull nomic-embed-text
 
-python ingest_kb.py       # construye el índice RAG desde data/*.md
-python orchestrator.py    # ejecuta el triage sobre la alerta de ejemplo
+python ingest_kb.py       # builds the RAG index from data/*.md
+python orchestrator.py    # runs the triage on the sample alert
 ```
 
-### Opción B: Docker
+### Option B: Docker
 
 ```bash
 docker compose up --build
-# en otra terminal, la primera vez, descarga los modelos dentro del contenedor:
+# in another terminal, the first time, pull the models inside the container:
 docker exec -it soc-orchestrator-ollama ollama pull llama3.1
 docker exec -it soc-orchestrator-ollama ollama pull nomic-embed-text
 docker compose restart app
@@ -77,53 +77,56 @@ docker compose restart app
 ### Tests
 
 ```bash
-PYTHONPATH=. pytest tests/ -v   # no requiere Ollama corriendo
+PYTHONPATH=. pytest tests/ -v   # doesn't require Ollama running
 ruff check .                    # lint
 ```
 
-## Seguridad: API keys y secretos
+## Security: API keys and secrets
 
-Este proyecto corre 100% local (Ollama), así que no necesita ninguna key por
-defecto. Si lo extiendes con APIs reales (VirusTotal, OpenAI, un LLM cloud),
-sigue esta regla: **las claves nunca van en el código ni se commitean**.
+This project runs 100% locally (Ollama), so it doesn't need any key by
+default. If you extend it with real APIs (VirusTotal, OpenAI, a cloud
+LLM), follow this rule: **keys never go in the code and never get
+committed.**
 
-- Guárdalas en un archivo `.env` local (ya está en `.gitignore`, revisa que
-  no aparezca en `git status` antes de cada commit).
-- Usa `.env.example` como plantilla pública (sin valores reales) para que
-  cualquiera que clone el repo sepa qué variables necesita.
-- Carga las variables con `python-dotenv` (`load_dotenv()`), como ya hace
-  `orchestrator.py`, y accede a ellas con `os.environ.get(...)`.
-- Antes de tu primer `git push`, corre un scanner de secretos
-  (`gitleaks detect` o `trufflehog filesystem .`) para asegurarte de que no
-  quedó ninguna key en el historial.
-- Si en el futuro conectas esto a un pipeline o a producción, sube las claves
-  a GitHub Actions como *Repository Secrets* (Settings → Secrets and
-  variables → Actions) en vez de un `.env` — nunca las metas directamente en
-  el YAML del workflow.
+- Store them in a local `.env` file (already in `.gitignore` — check
+  `git status` before every commit to make sure it doesn't show up).
+- Use `.env.example` as a public template (no real values) so anyone
+  cloning the repo knows which variables they need.
+- Load variables with `python-dotenv` (`load_dotenv()`), as
+  `orchestrator.py` already does, and access them via
+  `os.environ.get(...)`.
+- Before your first `git push`, run a secrets scanner (`gitleaks detect`
+  or `trufflehog filesystem .`) to make sure no key ended up in the
+  history.
+- If you later wire this into a pipeline or production, store keys as
+  GitHub Actions *Repository Secrets* (Settings → Secrets and variables →
+  Actions) instead of a `.env` file — never put them directly in the
+  workflow YAML.
 
-## Cómo extenderlo (roadmap sugerido)
+## Roadmap
 
-1. **Datos reales**: reemplaza `data/mitre_notes.md` por tus notas de HTB,
-   reglas de detección de Elastic, o exporta páginas de tu vault de Obsidian.
-2. **Herramientas reales**: conecta `tools.py` a APIs reales (VirusTotal,
-   AbuseIPDB) o, mejor, a tus propios servidores MCP.
-3. **Trigger real**: usa n8n para que una alerta de tu SIEM/Elastic dispare
-   este pipeline automáticamente vía webhook, y publique el informe en Slack
-   o Obsidian.
-4. **Humano en el loop**: añade un nodo de "espera de aprobación" antes de
-   cualquier acción destructiva (aislar host, bloquear IP) — patrón estándar
-   en agentes de seguridad en producción.
-5. **Evaluación**: registra pares (alerta, informe) y arma un set de
-   regresión para medir si cambios al prompt/modelo mejoran o empeoran la
-   calidad del triage.
+1. **Real data**: replace `data/mitre_notes.md` with your own HTB notes,
+   Elastic detection rules, or an export from your knowledge vault.
+2. **Real tools**: connect `tools.py` to real APIs (VirusTotal,
+   AbuseIPDB) or, better, to your own MCP servers.
+3. **Real trigger**: use n8n so a SIEM/Elastic alert fires this pipeline
+   automatically via webhook, and publish the report to Slack or
+   Obsidian.
+4. **Human in the loop**: add an "awaiting approval" node before any
+   destructive action (isolate a host, block an IP) — the standard
+   pattern for production security agents.
+5. **Evaluation**: log (alert, report) pairs and build a regression set
+   to measure whether prompt/model changes improve or degrade triage
+   quality.
 
-## Valor para tu portafolio
+## Portfolio value
 
-- Demuestra orquestación multi-agente (no solo "un prompt con RAG"), que es
-  lo que distingue a un AI Engineer de alguien que solo llama a una API.
-- Conecta directamente con tus objetivos de Blue Team / Detection
-  Engineering: es una herramienta que un SOC real usaría.
-- Es 100% reproducible sin costo (modelo local), así que cualquier
-  reclutador puede clonarlo y correrlo.
-- Publícalo en GitHub con un GIF de la ejecución y una entrada corta en tu
-  blog técnico (aigis-cloud.com) explicando el patrón supervisor-worker.
+- Demonstrates multi-agent orchestration (not just "a prompt with RAG"),
+  which is what sets an AI Engineer apart from someone who just calls an
+  API.
+- Connects directly to Blue Team / Detection Engineering goals: it's a
+  tool a real SOC would actually use.
+- 100% reproducible at zero cost (local model), so any recruiter can
+  clone it and run it.
+- Publish it on GitHub with a GIF of it running and a short blog post
+  explaining the supervisor-worker pattern.

@@ -1,3 +1,4 @@
-Actúa como revisor senior. Revisá el diff actual: bugs, edge cases en el grafo de
-LangGraph (rutas del supervisor, estados incompletos), y adherencia a CLAUDE.md.
-Responde en formato Crítico / Importante / Sugerencia, con línea afectada y fix propuesto.
+Act as a senior reviewer. Review the current diff: bugs, edge cases in the
+LangGraph graph (supervisor routing, incomplete states), and adherence to
+CLAUDE.md. Respond in Critical / Important / Suggestion format, with the
+affected line and a proposed fix.
