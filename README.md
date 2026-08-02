@@ -11,17 +11,37 @@ Security Automation Engineer** roles, and as a reusable base for a local
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    START([Alert in]) --> SUP{{Supervisor}}
+    SUP -- "next_step = enrichment" --> ENR[Enrichment<br/>tool calling → IOC lookup]
+    SUP -- "next_step = research" --> RES[Research<br/>RAG over ChromaDB]
+    SUP -- "next_step = report" --> REP[Report<br/>LLM writes triage report]
+    SUP -- "next_step = end" --> END_([Triage report out])
+
+    ENR --> SUP
+    RES --> SUP
+    REP --> SUP
+
+    ENR -.-> TI[(VirusTotal / AbuseIPDB / OTX<br/>mocked in tools.py)]
+    RES -.-> KB[(ChromaDB<br/>data/*.md via ingest_kb.py)]
+    REP -.-> LLM[(Ollama<br/>llama3.1)]
 ```
-              ┌──────────────┐
-     ┌───────▶│  Supervisor  │◀───────┐
-     │        └──────┬───────┘        │
-     │               │ decides        │
-     │            next step           │
-┌────┴─────┐   ┌─────┴──────┐   ┌─────┴─────┐
-│Enrichment│   │  Research  │   │  Report   │
-│  (tools) │   │   (RAG)    │   │  (LLM)    │
-└──────────┘   └────────────┘   └───────────┘
+
+**Diagram source of truth:** this is a hand-drawn view of the graph. To
+generate the exact diagram from the running `StateGraph` (stays in sync
+with the code automatically), run:
+
+```python
+# inside a venv with the project deps installed
+from orchestrator import build_graph
+
+app = build_graph()
+app.get_graph().draw_mermaid_png(output_file_path="docs/architecture.png")
 ```
+
+Then embed it in the README with `![Architecture](docs/architecture.png)`
+if you prefer a static image over the live Mermaid block above.
 
 **Supervisor-worker** pattern: the supervisor doesn't do any work itself —
 it only decides which agent acts next based on the accumulated state. Each
