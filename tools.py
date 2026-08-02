@@ -1,12 +1,33 @@
 """
 Tools the agents can invoke.
-In production, replace enrich_ioc with real calls to VirusTotal, AbuseIPDB,
-OTX AlienVault, or your own SIEM/Elastic via API.
+enrich_ioc queries VirusTotal and AbuseIPDB when API keys are configured
+(VIRUSTOTAL_API_KEY / ABUSEIPDB_API_KEY in .env), falling back to the
+mocked reputation table (_FAKE_INTEL_DB) when no key is set or when the
+real APIs return nothing useful.
 """
 
+import ipaddress
+import os
+import re
+import time
+
+import requests
+from dotenv import load_dotenv
 from langchain_core.tools import tool
 
-# Mocked IOC reputation database. Swap in a real API in production.
+load_dotenv()
+
+VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY")
+ABUSEIPDB_API_KEY = os.getenv("ABUSEIPDB_API_KEY")
+
+REQUEST_TIMEOUT_SECONDS = 10
+MAX_RETRIES = 3
+BACKOFF_BASE_SECONDS = 2
+
+_HASH_RE = re.compile(r"^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$")
+
+# Mocked IOC reputation database. Used when no real API key is configured,
+# or as a last resort when the real APIs have no data for the indicator.
 _FAKE_INTEL_DB = {
     "192.168.56.101": "Internal IP. No reputation in public feeds (RFC1918 range).",
     "445": "SMB port. Frequently abused in lateral movement (T1021.002).",
@@ -14,10 +35,95 @@ _FAKE_INTEL_DB = {
 }
 
 
+def _is_ip(indicator: str) -> bool:
+    try:
+        ipaddress.ip_address(indicator)
+        return True
+    except ValueError:
+        return False
+
+
+def _is_hash(indicator: str) -> bool:
+    return bool(_HASH_RE.match(indicator))
+
+
+def _request_with_backoff(method: str, url: str, **kwargs) -> requests.Response | None:
+    """Issues an HTTP request, retrying on rate-limit (429) and 5xx with exponential backoff."""
+    response = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            response = requests.request(method, url, timeout=REQUEST_TIMEOUT_SECONDS, **kwargs)
+        except requests.RequestException:
+            if attempt == MAX_RETRIES:
+                return None
+            time.sleep(BACKOFF_BASE_SECONDS**attempt)
+            continue
+
+        if response.status_code == 429 or response.status_code >= 500:
+            if attempt == MAX_RETRIES:
+                return response
+            retry_after = response.headers.get("Retry-After")
+            delay = float(retry_after) if retry_after else BACKOFF_BASE_SECONDS**attempt
+            time.sleep(delay)
+            continue
+
+        return response
+    return response
+
+
+def _query_virustotal(indicator: str) -> str | None:
+    if not VIRUSTOTAL_API_KEY:
+        return None
+
+    if _is_ip(indicator):
+        endpoint = f"https://www.virustotal.com/api/v3/ip_addresses/{indicator}"
+    elif _is_hash(indicator):
+        endpoint = f"https://www.virustotal.com/api/v3/files/{indicator}"
+    else:
+        endpoint = f"https://www.virustotal.com/api/v3/domains/{indicator}"
+
+    response = _request_with_backoff(
+        "GET", endpoint, headers={"x-apikey": VIRUSTOTAL_API_KEY}
+    )
+    if response is None or response.status_code != 200:
+        return None
+
+    stats = response.json()["data"]["attributes"]["last_analysis_stats"]
+    malicious = stats.get("malicious", 0)
+    suspicious = stats.get("suspicious", 0)
+    total = sum(stats.values())
+    return f"VirusTotal: {malicious} malicious / {suspicious} suspicious out of {total} engines."
+
+
+def _query_abuseipdb(indicator: str) -> str | None:
+    if not ABUSEIPDB_API_KEY or not _is_ip(indicator):
+        return None
+
+    response = _request_with_backoff(
+        "GET",
+        "https://api.abuseipdb.com/api/v2/check",
+        headers={"Key": ABUSEIPDB_API_KEY, "Accept": "application/json"},
+        params={"ipAddress": indicator, "maxAgeInDays": 90},
+    )
+    if response is None or response.status_code != 200:
+        return None
+
+    data = response.json()["data"]
+    return (
+        f"AbuseIPDB: {data['abuseConfidenceScore']}% abuse confidence "
+        f"({data['totalReports']} reports)."
+    )
+
+
 @tool
 def enrich_ioc(indicator: str) -> str:
     """Looks up the reputation of an indicator of compromise (IP, hash, domain, port).
     Returns threat intelligence context for that indicator."""
+    if VIRUSTOTAL_API_KEY or ABUSEIPDB_API_KEY:
+        results = [r for r in (_query_virustotal(indicator), _query_abuseipdb(indicator)) if r]
+        if results:
+            return " | ".join(results)
+
     return _FAKE_INTEL_DB.get(
         indicator,
         f"No matches in feeds for '{indicator}'. Manual review recommended.",

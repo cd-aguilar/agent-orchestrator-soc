@@ -13,10 +13,12 @@ Security Automation Engineer roles.
 ## Scope
 Includes: supervisor graph → enrichment (tool calling) → research (RAG) →
 report, 100% local (Ollama + ChromaDB), with sample data
-(`data/mitre_notes.md`) and mocked threat intel (`tools.py`).
-Not yet included: real threat intel APIs (VirusTotal/AbuseIPDB/OTX), a real
-trigger via SIEM/n8n, human-in-the-loop before destructive actions,
-evaluation with a regression set. See Roadmap.
+(`data/mitre_notes.md`) and threat intel enrichment (`tools.py`) — real
+VirusTotal/AbuseIPDB lookups when API keys are configured, mocked
+(`_FAKE_INTEL_DB`) otherwise.
+Not yet included: OTX AlienVault, a real trigger via SIEM/n8n,
+human-in-the-loop before destructive actions, evaluation with a
+regression set. See Roadmap.
 
 ## Architecture
 The supervisor decides the next step based on accumulated state; each
@@ -32,10 +34,17 @@ to the supervisor. Full diagram in README.md.
 - **Embedded ChromaDB**: zero infrastructure for local RAG.
 - **Native tool calling, no manual prompt parsing**: more reliable, the
   same pattern used with MCP.
+- **Real threat intel with a mock fallback, not an all-or-nothing swap**:
+  `enrich_ioc` calls VirusTotal/AbuseIPDB (via `requests`, with timeout and
+  exponential backoff on 429/5xx) only when `VIRUSTOTAL_API_KEY` /
+  `ABUSEIPDB_API_KEY` are set in `.env`; with no keys, or if a call errors
+  or returns no data, it falls back to `_FAKE_INTEL_DB`. This keeps the
+  demo runnable offline/without keys while still being production-capable.
 
 ## Constraints
-- IOC enrichment is mocked (`_FAKE_INTEL_DB` in tools.py) — don't swap in
-  a real API without adding rate-limit handling and a `.env` for the key.
+- IOC enrichment uses real APIs (VirusTotal, AbuseIPDB) when keys are
+  configured in `.env`, and `_FAKE_INTEL_DB` in tools.py otherwise — keys
+  must never be hardcoded, only read from `.env` (see `.env.example`).
 - No human-in-the-loop yet: don't wire this up to real destructive
   actions (isolate a host, block an IP) without adding that approval node
   first.
@@ -43,8 +52,9 @@ to the supervisor. Full diagram in README.md.
 ## Roadmap
 - [ ] Replace `data/mitre_notes.md` with real notes (HTB, Elastic rules,
       vault export).
-- [ ] Connect `tools.py` to real APIs (VirusTotal, AbuseIPDB) or to your
-      own MCP servers.
+- [x] Connect `tools.py` to real APIs (VirusTotal, AbuseIPDB) with
+      rate-limit handling and `.env` keys.
+- [ ] Connect `tools.py` to OTX AlienVault or your own MCP servers.
 - [ ] Real trigger via n8n (webhook from SIEM/Elastic) + publish the
       report to Slack/Obsidian.
 - [ ] "Awaiting human approval" node before destructive actions.
