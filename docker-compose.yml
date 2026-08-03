@@ -24,6 +24,8 @@ services:
       - ollama
     environment:
       - OLLAMA_HOST=http://ollama:11434
+    ports:
+      - "8000:8000"
     volumes:
       - ./data:/app/data
       - chroma_data:/app/chroma_db

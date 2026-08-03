@@ -5,12 +5,18 @@
 - `enrich_ioc` now queries VirusTotal and AbuseIPDB over `requests` when
   `VIRUSTOTAL_API_KEY` / `ABUSEIPDB_API_KEY` are set in `.env`, with timeouts
   and exponential backoff on rate-limit (429) and 5xx responses.
+- `api.py`: FastAPI wrapper exposing `POST /triage` and `GET /health`, with
+  interactive Swagger docs at `/docs`. Lets a real webhook (n8n, Elastic
+  Watcher, Wazuh active response) trigger the same LangGraph pipeline the
+  CLI demo uses, instead of only running `orchestrator.py` by hand.
+- `tests/test_api.py`: API tests with the graph mocked out, no Ollama required.
 ### Changed
 - Translated the entire repo (docs, comments, docstrings, sample data) to English.
+- Dockerfile now runs `uvicorn api:app` by default (port 8000 exposed); the
+  original CLI demo is still available via `docker compose exec app python
+  orchestrator.py`.
 ### Fixed
 - Confirmed `.git-broken/` residue is inert (gitignored, no effect on `main`), safe to delete.
-### Status
-- `main` clean and in sync with `origin/main`. No open changes.
 
 ## [0.2.0]
 ### Added

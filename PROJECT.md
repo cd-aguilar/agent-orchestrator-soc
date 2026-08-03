@@ -34,6 +34,12 @@ to the supervisor. Full diagram in README.md.
 - **Embedded ChromaDB**: zero infrastructure for local RAG.
 - **Native tool calling, no manual prompt parsing**: more reliable, the
   same pattern used with MCP.
+- **FastAPI wrapper (`api.py`) around `build_graph()`, not a rewrite**:
+  `orchestrator.py`'s CLI entry point is untouched, so the pipeline has
+  two entry points (CLI, HTTP) sharing one graph. FastAPI was picked over
+  a bare Flask/webhook receiver because it gets request validation
+  (Pydantic) and Swagger UI (`/docs`) for free — no extra work, and it
+  matches the pattern used in `rag-api-cloud`.
 - **Real threat intel with a mock fallback, not an all-or-nothing swap**:
   `enrich_ioc` calls VirusTotal/AbuseIPDB (via `requests`, with timeout and
   exponential backoff on 429/5xx) only when `VIRUSTOTAL_API_KEY` /
@@ -55,8 +61,10 @@ to the supervisor. Full diagram in README.md.
 - [x] Connect `tools.py` to real APIs (VirusTotal, AbuseIPDB) with
       rate-limit handling and `.env` keys.
 - [ ] Connect `tools.py` to OTX AlienVault or your own MCP servers.
-- [ ] Real trigger via n8n (webhook from SIEM/Elastic) + publish the
-      report to Slack/Obsidian.
+- [x] Expose the pipeline over HTTP (`api.py`, `POST /triage`, Swagger at
+      `/docs`) so it can be triggered by a webhook instead of the CLI only.
+- [ ] Wire an actual n8n workflow (webhook from SIEM/Elastic) against
+      `POST /triage` + publish the report to Slack/Obsidian.
 - [ ] "Awaiting human approval" node before destructive actions.
 - [ ] Regression set (alert, report) to measure triage quality across
       prompt/model changes.
