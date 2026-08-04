@@ -5,7 +5,7 @@ services:
     image: ollama/ollama:latest
     container_name: soc-orchestrator-ollama
     ports:
-      - "11434:11434"
+      - "11436:11434"
     volumes:
       - ollama_data:/root/.ollama
     # Optional GPU: uncomment if you have the NVIDIA Container Toolkit
