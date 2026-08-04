@@ -46,6 +46,14 @@ to the supervisor. Full diagram in README.md.
   `ABUSEIPDB_API_KEY` are set in `.env`; with no keys, or if a call errors
   or returns no data, it falls back to `_FAKE_INTEL_DB`. This keeps the
   demo runnable offline/without keys while still being production-capable.
+- **Cloudflare Tunnel over a VPS to expose the API**: the pipeline needs
+  Ollama (real CPU/RAM), which doesn't fit a serverless free tier, and a
+  VPS running 24/7 costs money. A named Cloudflare Tunnel keeps the app
+  100% local (Docker Compose on the host) while giving it a stable public
+  hostname (`soc-api.aigis-cloud.com`) — zero additional infrastructure
+  cost, consistent with this project's "$0/month, fully reproducible"
+  positioning. Tradeoff: it's only reachable while the host machine and
+  the `Cloudflared` Windows service are both running, not true 24/7 uptime.
 
 ## Constraints
 - IOC enrichment uses real APIs (VirusTotal, AbuseIPDB) when keys are
@@ -63,8 +71,11 @@ to the supervisor. Full diagram in README.md.
 - [ ] Connect `tools.py` to OTX AlienVault or your own MCP servers.
 - [x] Expose the pipeline over HTTP (`api.py`, `POST /triage`, Swagger at
       `/docs`) so it can be triggered by a webhook instead of the CLI only.
+- [x] Deploy it somewhere reachable: `https://soc-api.aigis-cloud.com`, via
+      a named Cloudflare Tunnel to the local Docker Compose stack.
 - [ ] Wire an actual n8n workflow (webhook from SIEM/Elastic) against
-      `POST /triage` + publish the report to Slack/Obsidian.
+      `POST https://soc-api.aigis-cloud.com/triage` + publish the report
+      to Slack/Obsidian.
 - [ ] "Awaiting human approval" node before destructive actions.
 - [ ] Regression set (alert, report) to measure triage quality across
       prompt/model changes.
