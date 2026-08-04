@@ -88,9 +88,51 @@ uvicorn api:app --reload --port 8000
 ```
 
 `alert_id` is optional and just echoed back, for correlating the response
-with the originating SIEM alert. Point an n8n **Webhook** node's HTTP
-Request step at `POST https://soc-api.aigis-cloud.com/triage` to wire
-this into a real Elastic/Wazuh alert flow (see Roadmap).
+with the originating SIEM alert.
+
+**Heads up on latency:** one triage run is 3 sequential local LLM calls
+(enrichment, research, report) — a few minutes on CPU, faster with a GPU.
+Any client calling `/triage` synchronously (n8n, `curl`, a SIEM webhook
+action) needs a generous timeout; see the n8n workflow below for the
+value that worked here.
+
+## n8n workflow (SIEM webhook -> triage)
+
+`docker-compose.yml` includes a dedicated `n8n` service (port `5679`) with
+a ready-to-import workflow at
+[`n8n/workflow-triage.json`](n8n/workflow-triage.json): **Webhook**
+(`POST /webhook/soc-alert`) -> **HTTP Request** (`POST /triage`) ->
+**Respond to Webhook** (returns the triage report as the webhook's
+response).
+
+```bash
+docker compose up -d n8n
+# first time only: create the owner account at http://localhost:5679,
+# then import + activate the workflow:
+docker exec soc-orchestrator-n8n n8n import:workflow --input=/workflows/workflow-triage.json
+docker exec soc-orchestrator-n8n n8n publish:workflow --id=soc-orchestrator-triage-workflow
+docker compose restart n8n   # required for publish/activation to take effect
+
+# test it:
+curl -X POST http://localhost:5679/webhook/soc-alert \
+  -H "Content-Type: application/json" \
+  -d '{"alert_raw": "[EDR ALERT] Host: WKS-FINANCE-07 ...", "alert_id": "wazuh-100002"}'
+```
+
+The workflow's HTTP Request node calls the API at `http://app:8000/triage`
+— the **internal** Docker network address, not the public
+`soc-api.aigis-cloud.com` tunnel URL. Cloudflare's tunnel proxy aborts a
+request if the origin stays silent for ~100-120s, and a full triage run
+routinely takes several minutes with no streaming in between — well past
+that ceiling. Since n8n and the API run in the same Docker Compose stack,
+there's no reason to round-trip through the public internet for this
+call; the public URL remains there for external clients (a real SIEM
+elsewhere, `curl`, `/docs`) that aren't on the same host/network.
+
+To wire this against a real SIEM instead of the sample alert, point your
+Elastic Watcher / Wazuh active-response / whatever-fires-a-webhook at
+`http://<this-host>:5679/webhook/soc-alert` (or expose that port through
+its own tunnel) with a JSON body of `{"alert_raw": ..., "alert_id": ...}`.
 
 ## Why this stack
 
@@ -123,12 +165,13 @@ uvicorn api:app --reload  # or: run it as an API instead (see "API" above)
 ```bash
 docker compose up --build
 # in another terminal, the first time, pull the models inside the container:
-docker exec -it soc-orchestrator-ollama ollama pull llama3.1
-docker exec -it soc-orchestrator-ollama ollama pull nomic-embed-text
+docker exec soc-orchestrator-ollama ollama pull llama3.1
+docker exec soc-orchestrator-ollama ollama pull nomic-embed-text
 docker compose restart app
 # the container runs the API by default: http://localhost:8000/docs
 # for the one-shot CLI demo instead:
 docker compose exec app python orchestrator.py
+# for the n8n webhook workflow, see "n8n workflow" above
 ```
 
 ### Tests
@@ -166,10 +209,10 @@ committed.**
    Elastic detection rules, or an export from your knowledge vault.
 2. **Real tools**: connect `tools.py` to real APIs (VirusTotal,
    AbuseIPDB) or, better, to your own MCP servers.
-3. **Real trigger**: the pipeline is now reachable over HTTP (`POST
-   /triage`, see "API" above) — what's left is wiring an actual n8n
-   workflow so a SIEM/Elastic alert calls it automatically, and
-   publishing the resulting report to Slack or Obsidian.
+3. **Real trigger**: done — the pipeline is reachable over HTTP (`POST
+   /triage`) and wired into an n8n workflow (see "n8n workflow" above).
+   What's left: point it at a real Elastic/Wazuh alert instead of the
+   sample one, and publish the resulting report to Slack or Obsidian.
 4. **Human in the loop**: add an "awaiting approval" node before any
    destructive action (isolate a host, block an IP) — the standard
    pattern for production security agents.

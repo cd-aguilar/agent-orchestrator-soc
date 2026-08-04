@@ -1,0 +1,61 @@
+{
+  "name": "SOC Triage Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "soc-alert",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8f2c1a10-1e4b-4b3a-9f1a-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "soc-orchestrator-triage"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:8000/triage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {
+          "timeout": 900000
+        }
+      },
+      "id": "8f2c1a10-1e4b-4b3a-9f1a-000000000002",
+      "name": "POST /triage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "8f2c1a10-1e4b-4b3a-9f1a-000000000003",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "POST /triage", "type": "main", "index": 0 }]]
+    },
+    "POST /triage": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "soc-orchestrator-triage-workflow"
+}

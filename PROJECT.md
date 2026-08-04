@@ -16,9 +16,11 @@ report, 100% local (Ollama + ChromaDB), with sample data
 (`data/mitre_notes.md`) and threat intel enrichment (`tools.py`) — real
 VirusTotal/AbuseIPDB lookups when API keys are configured, mocked
 (`_FAKE_INTEL_DB`) otherwise.
-Not yet included: OTX AlienVault, a real trigger via SIEM/n8n,
-human-in-the-loop before destructive actions, evaluation with a
-regression set. See Roadmap.
+Includes a real trigger via a dedicated n8n instance (Webhook -> `POST
+/triage` -> Respond to Webhook, see `n8n/workflow-triage.json`).
+Not yet included: OTX AlienVault, publishing the report to
+Slack/Obsidian, human-in-the-loop before destructive actions, evaluation
+with a regression set. See Roadmap.
 
 ## Architecture
 The supervisor decides the next step based on accumulated state; each
@@ -54,6 +56,21 @@ to the supervisor. Full diagram in README.md.
   cost, consistent with this project's "$0/month, fully reproducible"
   positioning. Tradeoff: it's only reachable while the host machine and
   the `Cloudflared` Windows service are both running, not true 24/7 uptime.
+- **n8n calls the API over the internal Docker network, not the public
+  tunnel URL**: the `n8n` service (added to `docker-compose.yml`) points
+  its HTTP Request node at `http://app:8000/triage`, not
+  `https://soc-api.aigis-cloud.com/triage`. Reason: Cloudflare's tunnel
+  proxy kills a request if the origin sends nothing back for ~100-120s,
+  and a full triage run (3 sequential local LLM calls) took 6+ minutes in
+  testing — well past that ceiling — so the public URL is only usable for
+  short-lived/external calls (a SIEM outside this host, manual `curl`,
+  `/docs`), not for the orchestrator that lives on the same machine.
+- **Dedicated n8n instance for this project, not the existing `aigis-n8n`
+  container**: this machine already runs an n8n (`aigis-n8n`, port 5678)
+  for a different project, with its own Slack/Telegram/TheHive
+  credentials. Reusing it would mix an unrelated project's secrets into
+  this portfolio piece's docker-compose, so this project gets its own
+  `n8n` service (port 5679, own volume) instead.
 
 ## Constraints
 - IOC enrichment uses real APIs (VirusTotal, AbuseIPDB) when keys are
@@ -73,12 +90,17 @@ to the supervisor. Full diagram in README.md.
       `/docs`) so it can be triggered by a webhook instead of the CLI only.
 - [x] Deploy it somewhere reachable: `https://soc-api.aigis-cloud.com`, via
       a named Cloudflare Tunnel to the local Docker Compose stack.
-- [ ] Wire an actual n8n workflow (webhook from SIEM/Elastic) against
-      `POST https://soc-api.aigis-cloud.com/triage` + publish the report
-      to Slack/Obsidian.
+- [x] Wire an actual n8n workflow (Webhook -> HTTP Request ->
+      `POST /triage` on the internal Docker network -> Respond to
+      Webhook), running as its own service in `docker-compose.yml`.
+- [ ] Publish the triage report to Slack/Obsidian from that n8n workflow.
 - [ ] "Awaiting human approval" node before destructive actions.
 - [ ] Regression set (alert, report) to measure triage quality across
       prompt/model changes.
+- [ ] GPU passthrough for the containerized `ollama` service (NVIDIA
+      Container Toolkit) — currently CPU-only in Docker, ~6 min per
+      triage vs. a faster native-Ollama run; the GPU stanza is already
+      stubbed out in `docker-compose.yml`.
 
 ## Open items
 See TODO.md
