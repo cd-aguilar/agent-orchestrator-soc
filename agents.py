@@ -22,8 +22,8 @@ PERSIST_DIR = Path(__file__).parent / "chroma_db"
 # OLLAMA_HOST is overridden to http://ollama:11434 (see docker-compose.yml).
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 
-# Local model via Ollama. Swap "llama3.1" for whichever model you've pulled.
-llm = ChatOllama(model="llama3.1", temperature=0, base_url=OLLAMA_HOST)
+# Local model via Ollama. Swap "llama3.2:3b" for whichever model you've pulled.
+llm = ChatOllama(model="llama3.2:3b", temperature=0, base_url=OLLAMA_HOST)
 
 
 # --- Shared state between agents ---------------------------------------------
