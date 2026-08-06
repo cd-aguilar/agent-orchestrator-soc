@@ -10,8 +10,6 @@
 - [ ] Regression set (alert, report) to evaluate prompt/model changes
 - [x] Initialize git + push to GitHub as a portfolio piece
 - [ ] Add a GIF of the pipeline running to the README
-- [ ] GPU passthrough for the containerized `ollama` service (NVIDIA
-      Container Toolkit) — see note below, currently CPU-only and slow
 
 ## In progress
 - [ ]
@@ -36,6 +34,25 @@
       (`POST /webhook/soc-alert`) -> HTTP Request (`POST /triage` over the
       internal Docker network) -> Respond to Webhook. Tested end-to-end
       with the sample alert, HTTP 200 with the full report.
+- [x] GPU passthrough for the containerized `ollama` service (NVIDIA
+      Container Toolkit already present on the host) — uncommented the
+      `deploy.resources.reservations.devices` stanza in
+      `docker-compose.yml`. Confirmed with `nvidia-smi` inside the
+      container (GTX 1650 visible) and measured ~2x speedup on a full
+      triage run: 3m07s with GPU vs. 6m17s CPU-only.
+
+## Notes (2026-08-06) — GPU passthrough
+- Re-enabled the NVIDIA `deploy` stanza in `docker-compose.yml` that was
+  left commented out (see 2026-08-04b note below on why the containerized
+  `ollama` was CPU-only). No other config needed — the NVIDIA Container
+  Toolkit was already installed on the host.
+- Verified GPU visibility with `docker exec soc-orchestrator-ollama
+  nvidia-smi` (GTX 1650, 4GB VRAM, correctly detected inside the
+  container).
+- Timed one full triage run end-to-end (`POST /triage` direct, not
+  through n8n): **3m07s**, vs. **6m17s** measured CPU-only two days
+  earlier with the same sample alert. Still well within the n8n workflow
+  node's 900s timeout margin.
 
 ## Notes (2026-08-04b) — n8n workflow
 - Tried pointing the workflow at the public

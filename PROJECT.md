@@ -71,6 +71,12 @@ to the supervisor. Full diagram in README.md.
   credentials. Reusing it would mix an unrelated project's secrets into
   this portfolio piece's docker-compose, so this project gets its own
   `n8n` service (port 5679, own volume) instead.
+- **GPU passthrough for the containerized `ollama`**: the host already had
+  the NVIDIA Container Toolkit installed, so the `deploy.resources`
+  stanza in `docker-compose.yml` just needed uncommenting — no other
+  config. Confirmed with `nvidia-smi` inside the container (GTX 1650)
+  and a ~2x speedup on a full triage run (3m07s vs. 6m17s CPU-only).
+  Still well inside the n8n workflow's 900s HTTP Request timeout.
 
 ## Constraints
 - IOC enrichment uses real APIs (VirusTotal, AbuseIPDB) when keys are
@@ -97,10 +103,8 @@ to the supervisor. Full diagram in README.md.
 - [ ] "Awaiting human approval" node before destructive actions.
 - [ ] Regression set (alert, report) to measure triage quality across
       prompt/model changes.
-- [ ] GPU passthrough for the containerized `ollama` service (NVIDIA
-      Container Toolkit) — currently CPU-only in Docker, ~6 min per
-      triage vs. a faster native-Ollama run; the GPU stanza is already
-      stubbed out in `docker-compose.yml`.
+- [x] GPU passthrough for the containerized `ollama` service — ~2x
+      faster (3m07s vs. 6m17s per triage run).
 
 ## Open items
 See TODO.md
