@@ -71,12 +71,27 @@ to the supervisor. Full diagram in README.md.
   credentials. Reusing it would mix an unrelated project's secrets into
   this portfolio piece's docker-compose, so this project gets its own
   `n8n` service (port 5679, own volume) instead.
-- **GPU passthrough for the containerized `ollama`**: the host already had
-  the NVIDIA Container Toolkit installed, so the `deploy.resources`
-  stanza in `docker-compose.yml` just needed uncommenting — no other
-  config. Confirmed with `nvidia-smi` inside the container (GTX 1650)
-  and a ~2x speedup on a full triage run (3m07s vs. 6m17s CPU-only).
-  Still well inside the n8n workflow's 900s HTTP Request timeout.
+- **GPU passthrough alone was not enough — the model had to fit the
+  card**: uncommenting the `deploy.resources` stanza in
+  `docker-compose.yml` (NVIDIA Container Toolkit already present on the
+  host) made `llama3.1` (8B) *slower* (7m26s vs. 6m17s CPU-only): the
+  4GB GTX 1650 only fit 13 of 33 layers, and the GPU/CPU split-layer
+  overhead plus Ollama halving CPU threads during hybrid offload made it
+  worse than pure CPU. Switching the model to `llama3.2:3b` (small
+  enough to run mostly on-GPU) is what delivered the real speedup:
+  **39.7s** per triage run. See TODO.md's 2026-08-06 note and its
+  2026-08-08 correction for the full story, including a fabricated
+  "3m07s" benchmark from an earlier session that never actually ran and
+  has since been corrected here.
+- **`enrich_ioc` accepts `str | list[str]`, and splits `"host:port"`
+  before matching**: switching to `llama3.2:3b` surfaced two real
+  tool-calling quirks — it sometimes batches multiple IOCs into one
+  call as a list instead of one call per IOC, and passes `"ip:port"` as
+  a single string, which doesn't match the bare-IP/bare-port keys used
+  by `_FAKE_INTEL_DB` and the real APIs. Both are now handled in
+  `tools.py` rather than assuming a specific model's calling style,
+  since a weaker/smaller model producing either shape is expected
+  behavior, not an edge case.
 
 ## Constraints
 - IOC enrichment uses real APIs (VirusTotal, AbuseIPDB) when keys are
@@ -103,8 +118,10 @@ to the supervisor. Full diagram in README.md.
 - [ ] "Awaiting human approval" node before destructive actions.
 - [ ] Regression set (alert, report) to measure triage quality across
       prompt/model changes.
-- [x] GPU passthrough for the containerized `ollama` service — ~2x
-      faster (3m07s vs. 6m17s per triage run).
+- [x] GPU passthrough for the containerized `ollama` service, combined
+      with switching to a GPU-sized model (`llama3.2:3b`) — 39.7s vs.
+      6m17s per triage run. (GPU passthrough alone, with the old
+      `llama3.1`, was actually slower — see Key decisions.)
 
 ## Open items
 See TODO.md

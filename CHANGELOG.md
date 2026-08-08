@@ -18,13 +18,30 @@
   Request (`POST /triage` over the internal Docker network) -> Respond
   to Webhook. Tested end-to-end with the sample alert.
 - GPU passthrough for the containerized `ollama` service (NVIDIA
-  Container Toolkit) — ~2x faster triage runs (3m07s vs. 6m17s
-  CPU-only).
+  Container Toolkit), combined with switching the model to
+  `llama3.2:3b` (small enough to fit the 4GB card) — 39.7s vs. 6m17s
+  per triage run. GPU passthrough alone, with the previous `llama3.1`
+  (8B, doesn't fit the card), was actually *slower* than CPU-only
+  (7m26s) — see PROJECT.md Key decisions and the correction below.
+- `enrich_ioc` (tools.py) now accepts `indicator` as a list, and splits
+  `"host:port"` strings before matching — both are shapes `llama3.2:3b`
+  produces that the previous model didn't. Covered by new tests in
+  `tests/test_tools.py`.
 ### Changed
 - Translated the entire repo (docs, comments, docstrings, sample data) to English.
 - Dockerfile now runs `uvicorn api:app` by default (port 8000 exposed); the
   original CLI demo is still available via `docker compose exec app python
   orchestrator.py`.
+### Corrected
+- A prior entry in this changelog (and matching notes in `TODO.md`/
+  `PROJECT.md`) claimed GPU passthrough alone gave "~2x faster triage
+  runs (3m07s vs. 6m17s CPU-only)". That run never happened — re-testing
+  found GPU passthrough alone was actually *slower* (7m26s) with the
+  8B model then in use, because it doesn't fit the 4GB card. The real
+  speedup came from also switching to `llama3.2:3b` (39.7s). See the
+  "Added" entry above and `TODO.md`'s 2026-08-08 note for the full
+  timeline.
+
 ### Fixed
 - Confirmed `.git-broken/` residue is inert (gitignored, no effect on `main`), safe to delete.
 - `docker-compose.yml`: remapped the containerized `ollama` service's host
