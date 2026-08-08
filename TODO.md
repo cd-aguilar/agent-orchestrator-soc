@@ -6,8 +6,6 @@
 - [ ] Test the n8n workflow against a real Elastic/Wazuh alert (so far
       only tested with the sample EDR alert)
 - [ ] Publish the triage report to Slack/Obsidian from the n8n workflow
-- [ ] Approve step for the n8n workflow itself (currently `/approve` is
-      only reachable via `/docs`/`curl`, not from the webhook flow)
 - [ ] Regression set (alert, report) to evaluate prompt/model changes
 - [x] Initialize git + push to GitHub as a portfolio piece
 - [ ] Add a GIF of the pipeline running to the README
@@ -55,6 +53,16 @@
       Verified end-to-end against the real stack (not mocked): a
       High-severity alert paused correctly, `/approve` resolved it, and
       an unknown `thread_id` 404s. 3 new tests in `tests/test_api.py`.
+- [x] Approve step for the n8n workflow (`n8n/workflow-approve.json`):
+      Webhook (`POST /webhook/soc-approve`) -> HTTP Request (`POST
+      /triage/{thread_id}/approve` over the internal Docker network) ->
+      Respond to Webhook. Same import/publish/restart quirk as the
+      triage workflow (see 2026-08-04b note). Tested end-to-end: a
+      High-severity alert triggered via `POST /triage`, then approved
+      via this n8n webhook, returned `status: "completed"`. Still no
+      Slack/Teams button — this project's n8n has no chat credentials
+      (see PROJECT.md's "Dedicated n8n instance" decision), so approval
+      still requires manually calling this webhook or `/docs`.
 
 ## Correction (2026-08-08)
 A previous session recorded a **fabricated** benchmark for GPU

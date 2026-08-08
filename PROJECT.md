@@ -20,11 +20,13 @@ Includes a real trigger via a dedicated n8n instance (Webhook -> `POST
 /triage` -> Respond to Webhook, see `n8n/workflow-triage.json`).
 Includes a human-approval gate: a High/Critical report pauses the graph
 (`POST /triage` returns `status="pending_approval"`) until `POST
-/triage/{thread_id}/approve` resolves it.
+/triage/{thread_id}/approve` resolves it — reachable either directly or
+via a second n8n workflow (`n8n/workflow-approve.json`).
 Not yet included: OTX AlienVault, publishing the report to
-Slack/Obsidian, evaluation with a regression set, an n8n/Slack step for
-the approval gate itself (currently only reachable via `/docs` or
-`curl`). See Roadmap.
+Slack/Obsidian, evaluation with a regression set, a chat button
+(Slack/Teams) for the approval gate — this project's n8n has no chat
+credentials, so approval is still a manual webhook/`curl`/`/docs` call.
+See Roadmap.
 
 ## Architecture
 The supervisor decides the next step based on accumulated state; each
@@ -138,10 +140,10 @@ to the supervisor. Full diagram in README.md.
 - [ ] Publish the triage report to Slack/Obsidian from that n8n workflow.
 - [x] "Awaiting human approval" node for High/Critical reports
       (`await_approval` in `agents.py`, `POST /triage/{thread_id}/approve`
-      in `api.py`). Still no node takes a real destructive action, and
-      the n8n workflow doesn't yet have an approve step of its own (only
-      reachable via `/docs`/`curl`) — natural next step once report
-      publishing (above) exists.
+      in `api.py`), plus an n8n webhook for it
+      (`n8n/workflow-approve.json`). Still no node takes a real
+      destructive action, and there's no chat (Slack/Teams) button —
+      natural next step once report publishing (above) exists.
 - [ ] Regression set (alert, report) to measure triage quality across
       prompt/model changes.
 - [x] GPU passthrough for the containerized `ollama` service, combined

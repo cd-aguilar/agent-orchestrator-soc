@@ -150,6 +150,31 @@ Elastic Watcher / Wazuh active-response / whatever-fires-a-webhook at
 `http://<this-host>:5679/webhook/soc-alert` (or expose that port through
 its own tunnel) with a JSON body of `{"alert_raw": ..., "alert_id": ...}`.
 
+### Approving a High/Critical alert via n8n
+
+A second workflow,
+[`n8n/workflow-approve.json`](n8n/workflow-approve.json), mirrors the one
+above for the approval gate: **Webhook** (`POST /webhook/soc-approve`) ->
+**HTTP Request** (`POST /triage/{thread_id}/approve`) -> **Respond to
+Webhook**.
+
+```bash
+docker exec soc-orchestrator-n8n n8n import:workflow --input=/workflows/workflow-approve.json
+docker exec soc-orchestrator-n8n n8n publish:workflow --id=soc-orchestrator-approve-workflow
+docker compose restart n8n
+
+curl -X POST http://localhost:5679/webhook/soc-approve \
+  -H "Content-Type: application/json" \
+  -d '{"thread_id": "wazuh-100002", "decision": "approved"}'
+```
+
+This still requires a human (or whatever's on the other end of that
+webhook) to actually decide and call it — there's no Slack/Teams button
+wired up yet, since this project's n8n instance has no chat credentials
+configured (see "Why this stack" below on why it doesn't reuse the other
+project's n8n). That's the natural next step once report publishing is
+in place.
+
 ## Why this stack
 
 | Decision | Reason |

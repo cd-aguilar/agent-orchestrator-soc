@@ -36,6 +36,11 @@
   /triage/{thread_id}/approve` endpoint resumes the run. Low/Medium
   severity is unchanged (`status: "completed"` synchronously). 3 new
   tests in `tests/test_api.py`.
+- `n8n/workflow-approve.json`: a second n8n workflow (Webhook
+  `POST /webhook/soc-approve` -> HTTP Request `POST
+  /triage/{thread_id}/approve` -> Respond to Webhook), mirroring the
+  existing triage workflow, so the approval gate above is reachable from
+  a SIEM/webhook flow and not only `/docs`/`curl`. Tested end-to-end.
 ### Changed
 - Translated the entire repo (docs, comments, docstrings, sample data) to English.
 - Dockerfile now runs `uvicorn api:app` by default (port 8000 exposed); the
