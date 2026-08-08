@@ -8,13 +8,30 @@ ONE thing well and writes its result back to the shared state.
 """
 
 import os
+import re
 from pathlib import Path
 from typing import Literal, TypedDict
 
 from langchain_chroma import Chroma
 from langchain_ollama import ChatOllama, OllamaEmbeddings
+from langgraph.types import interrupt
 
 from tools import enrich_ioc, get_host_criticality
+
+# Severities that must not reach the caller unattended — a human has to
+# approve before the pipeline is considered finished. Low/Medium triage
+# still completes end-to-end without a human in the loop.
+HIGH_SEVERITIES = {"high", "critical"}
+_SEVERITY_RE = re.compile(r"severity\W*(low|medium|high|critical)", re.IGNORECASE)
+
+
+def _extract_severity(report: str) -> str:
+    """Pulls the severity word out of the report text (report_node's prompt
+    asks for a 'Severity (Low/Medium/High/Critical)' line). Defaults to
+    "high" on a miss — fail closed, route to human approval rather than
+    silently skip it if the model didn't follow the format."""
+    match = _SEVERITY_RE.search(report)
+    return match.group(1).lower() if match else "high"
 
 PERSIST_DIR = Path(__file__).parent / "chroma_db"
 
@@ -32,26 +49,31 @@ class TriageState(TypedDict):
     enrichment: str         # result from the enrichment agent
     research: str           # result from the research agent (RAG)
     report: str             # final report
+    severity: str           # extracted from the report (low/medium/high/critical)
+    approval: str           # "" until a human resolves the approval gate, then "approved"/"rejected"
     next_step: str          # supervisor's routing decision
 
 
 # --- Supervisor agent ---------------------------------------------------
 def supervisor_node(state: TriageState) -> dict:
-    """Decides the next step in the pipeline. In this example the flow is
-    linear and deterministic (enrich -> research -> report), but this is
-    where you'd introduce real conditional logic (e.g. skip research if the
-    alert already arrives enriched, or request human intervention when
-    confidence is low)."""
+    """Decides the next step in the pipeline. Linear and deterministic
+    (enrich -> research -> report), except for one branch: a High/Critical
+    report doesn't reach "end" until a human has resolved the approval
+    gate (await_approval), regardless of what that resolution is."""
     if not state.get("enrichment"):
         return {"next_step": "enrichment"}
     if not state.get("research"):
         return {"next_step": "research"}
     if not state.get("report"):
         return {"next_step": "report"}
+    if state["severity"] in HIGH_SEVERITIES and not state.get("approval"):
+        return {"next_step": "await_approval"}
     return {"next_step": "end"}
 
 
-def route_after_supervisor(state: TriageState) -> Literal["enrichment", "research", "report", "end"]:
+def route_after_supervisor(
+    state: TriageState,
+) -> Literal["enrichment", "research", "report", "await_approval", "end"]:
     return state["next_step"]  # type: ignore[return-value]
 
 
@@ -109,4 +131,22 @@ def report_node(state: TriageState) -> dict:
         f"Research:\n{state['research']}"
     )
     response = llm.invoke(prompt)
-    return {"report": response.content}
+    report = response.content
+    return {"report": report, "severity": _extract_severity(report)}
+
+
+# --- Human approval gate (High/Critical severity only) ------------------
+def await_approval_node(state: TriageState) -> dict:
+    """Pauses the graph (via LangGraph's interrupt) so a human can review
+    the report before a High/Critical alert is considered resolved. The
+    graph must be compiled with a checkpointer for this to actually pause
+    execution instead of raising — see build_graph() in orchestrator.py.
+    Resuming with Command(resume="approved" | "rejected") sets `approval`
+    and lets the supervisor route to "end"."""
+    decision = interrupt(
+        {
+            "reason": f"{state['severity'].capitalize()} severity alert requires human approval.",
+            "report": state["report"],
+        }
+    )
+    return {"approval": decision}

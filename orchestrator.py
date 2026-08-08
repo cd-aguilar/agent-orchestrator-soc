@@ -12,10 +12,13 @@ from dotenv import load_dotenv
 load_dotenv()  # loads .env if present (OLLAMA_HOST, future API keys, etc.)
 # Must run BEFORE importing agents, which reads OLLAMA_HOST at import time.
 
+from langgraph.checkpoint.memory import MemorySaver  # noqa: E402
 from langgraph.graph import END, StateGraph  # noqa: E402
+from langgraph.types import Command  # noqa: E402
 
 from agents import (  # noqa: E402
     TriageState,
+    await_approval_node,
     enrichment_node,
     report_node,
     research_node,
@@ -39,6 +42,7 @@ def build_graph():
     graph.add_node("enrichment", enrichment_node)
     graph.add_node("research", research_node)
     graph.add_node("report", report_node)
+    graph.add_node("await_approval", await_approval_node)
 
     graph.set_entry_point("supervisor")
 
@@ -49,6 +53,7 @@ def build_graph():
             "enrichment": "enrichment",
             "research": "research",
             "report": "report",
+            "await_approval": "await_approval",
             "end": END,
         },
     )
@@ -56,27 +61,51 @@ def build_graph():
     graph.add_edge("enrichment", "supervisor")
     graph.add_edge("research", "supervisor")
     graph.add_edge("report", "supervisor")
+    graph.add_edge("await_approval", "supervisor")
 
-    return graph.compile()
+    # A checkpointer is required for interrupt()/Command(resume=...) to
+    # actually pause and later resume a run instead of raising. MemorySaver
+    # is in-process only (checkpoints don't survive a restart) — fine for
+    # the CLI demo and single-process API deployment this repo ships with;
+    # swap for a persistent checkpointer (Postgres/Redis) for real 24/7 use.
+    return graph.compile(checkpointer=MemorySaver())
 
 
 def main():
     app = build_graph()
+    config = {"configurable": {"thread_id": "cli-demo"}}
 
-    final_state = app.invoke(
+    result = app.invoke(
         {
             "alert_raw": SAMPLE_ALERT,
             "enrichment": "",
             "research": "",
             "report": "",
+            "severity": "",
+            "approval": "",
             "next_step": "",
-        }
+        },
+        config=config,
     )
+
+    while "__interrupt__" in result:
+        payload = result["__interrupt__"][0].value
+        print("\n" + "=" * 70)
+        print("APPROVAL REQUIRED — " + payload["reason"])
+        print("=" * 70)
+        print(payload["report"])
+        decision = input("\nApprove this triage? [y/N] ").strip().lower()
+        result = app.invoke(
+            Command(resume="approved" if decision == "y" else "rejected"),
+            config=config,
+        )
 
     print("\n" + "=" * 70)
     print("TRIAGE REPORT")
     print("=" * 70)
-    print(final_state["report"])
+    print(result["report"])
+    if result.get("approval"):
+        print(f"\n[Human decision: {result['approval']}]")
 
 
 if __name__ == "__main__":
