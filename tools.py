@@ -1,9 +1,10 @@
 """
 Tools the agents can invoke.
-enrich_ioc queries VirusTotal and AbuseIPDB when API keys are configured
-(VIRUSTOTAL_API_KEY / ABUSEIPDB_API_KEY in .env), falling back to the
-mocked reputation table (_FAKE_INTEL_DB) when no key is set or when the
-real APIs return nothing useful.
+enrich_ioc queries VirusTotal, AbuseIPDB, and OTX AlienVault when API
+keys are configured (VIRUSTOTAL_API_KEY / ABUSEIPDB_API_KEY /
+OTX_API_KEY in .env), falling back to the mocked reputation table
+(_FAKE_INTEL_DB) when no key is set or when the real APIs return
+nothing useful.
 """
 
 import ipaddress
@@ -19,6 +20,7 @@ load_dotenv()
 
 VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY")
 ABUSEIPDB_API_KEY = os.getenv("ABUSEIPDB_API_KEY")
+OTX_API_KEY = os.getenv("OTX_API_KEY")
 
 REQUEST_TIMEOUT_SECONDS = 10
 MAX_RETRIES = 3
@@ -115,6 +117,29 @@ def _query_abuseipdb(indicator: str) -> str | None:
     )
 
 
+def _query_otx(indicator: str) -> str | None:
+    if not OTX_API_KEY:
+        return None
+
+    if _is_ip(indicator):
+        section = "IPv4"
+    elif _is_hash(indicator):
+        section = "file"
+    else:
+        section = "domain"
+
+    response = _request_with_backoff(
+        "GET",
+        f"https://otx.alienvault.com/api/v1/indicators/{section}/{indicator}/general",
+        headers={"X-OTX-API-KEY": OTX_API_KEY},
+    )
+    if response is None or response.status_code != 200:
+        return None
+
+    pulse_count = response.json().get("pulse_info", {}).get("count", 0)
+    return f"OTX AlienVault: seen in {pulse_count} threat intel pulse(s)."
+
+
 def _split_host_port(indicator: str) -> tuple[str, str] | None:
     """Splits 'host:port' or 'ip:port' into its two parts. Models sometimes
     pass IP:port as a single indicator instead of two separate tool calls;
@@ -132,8 +157,16 @@ def _enrich_one(indicator: str) -> str:
         host, port = split
         return f"{_enrich_one(host)} | {_enrich_one(port)}"
 
-    if VIRUSTOTAL_API_KEY or ABUSEIPDB_API_KEY:
-        results = [r for r in (_query_virustotal(indicator), _query_abuseipdb(indicator)) if r]
+    if VIRUSTOTAL_API_KEY or ABUSEIPDB_API_KEY or OTX_API_KEY:
+        results = [
+            r
+            for r in (
+                _query_virustotal(indicator),
+                _query_abuseipdb(indicator),
+                _query_otx(indicator),
+            )
+            if r
+        ]
         if results:
             return " | ".join(results)
 
