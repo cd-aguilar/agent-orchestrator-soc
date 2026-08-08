@@ -136,6 +136,17 @@ to the supervisor. Full diagram in README.md.
   Low) is left as a documented baseline gap rather than chased to 5/5 —
   further prompt tuning against a 5-case set risks overfitting to those
   exact cases instead of improving general judgment.
+- **Tested against a real Wazuh/Elasticsearch alert, not just synthetic
+  ones**: the sibling `aigis-detect` project (same host) runs a real
+  Wazuh manager + Elasticsearch. Triggered two genuine alerts on its
+  live `dpkg.log` monitoring, pulled the real documents from
+  Elasticsearch, transformed their native JSON fields into `alert_raw`
+  text, and POSTed through this project's actual n8n webhook. Confirmed
+  the pipeline handles real Wazuh schema end-to-end, and surfaced a real
+  integration requirement: `enrich_ioc`'s IP detection needs dotted
+  notation, so any real "Format alert" step feeding this pipeline must
+  preserve IOCs in native format rather than embedding them in a
+  log-line-safe string. See TODO.md's 2026-08-08c note.
 
 ## Constraints
 - IOC enrichment uses real APIs (VirusTotal, AbuseIPDB) when keys are
@@ -160,6 +171,8 @@ to the supervisor. Full diagram in README.md.
 - [x] Wire an actual n8n workflow (Webhook -> HTTP Request ->
       `POST /triage` on the internal Docker network -> Respond to
       Webhook), running as its own service in `docker-compose.yml`.
+- [x] Test that n8n workflow against a real Wazuh/Elasticsearch alert
+      (not just the sample EDR text) — see Key decisions.
 - [ ] Publish the triage report to Slack/Obsidian from that n8n workflow.
 - [x] "Awaiting human approval" node for High/Critical reports
       (`await_approval` in `agents.py`, `POST /triage/{thread_id}/approve`

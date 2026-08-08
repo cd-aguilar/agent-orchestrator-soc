@@ -47,6 +47,15 @@
   exact text. Run manually (`python -m eval.run_regression`), not part
   of CI. Current baseline: 4/5 — see PROJECT.md Key decisions for what
   the first real run caught and how the prompts were tightened.
+### Validated
+- Tested the n8n webhook against a real Wazuh/Elasticsearch alert (not
+  just the sample EDR text): triggered two genuine detections on a
+  sibling project's live Wazuh stack, pulled the real alert documents
+  from Elasticsearch, transformed their native JSON into `alert_raw`,
+  and POSTed through `POST /webhook/soc-alert`. Confirmed real-schema
+  handling end-to-end; found that `enrich_ioc`'s IP matching needs
+  dotted notation, so a real "Format alert" transform must preserve IOC
+  formatting. See TODO.md's 2026-08-08c note.
 ### Changed (prompts)
 - `enrichment_node`'s prompt now explicitly states which tool is for
   what (`enrich_ioc` for IPs/hashes/domains, `get_host_criticality` for

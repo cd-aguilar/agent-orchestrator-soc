@@ -3,8 +3,6 @@
 ## Pending
 - [ ] Replace `data/mitre_notes.md` with a real knowledge base
 - [ ] Connect `enrich_ioc` to OTX AlienVault or a custom MCP server
-- [ ] Test the n8n workflow against a real Elastic/Wazuh alert (so far
-      only tested with the sample EDR alert)
 - [ ] Publish the triage report to Slack/Obsidian from the n8n workflow
 - [x] Initialize git + push to GitHub as a portfolio piece
 - [ ] Add a GIF of the pipeline running to the README
@@ -70,6 +68,44 @@
       not part of `pytest`/CI (no GPU/Ollama there), run manually with
       `python -m eval.run_regression`. See the 2026-08-08 note below for
       the current baseline and what it caught on its first real run.
+
+## Notes (2026-08-08c) — tested against a real Wazuh/Elasticsearch alert
+- The `aigis-detect` stack (sibling project, same host) has a real,
+  running Wazuh manager + Elasticsearch (`aigis-wazuh-manager`,
+  `aigis-elasticsearch`) monitoring its own `/var/log/dpkg.log`.
+  Elasticsearch's `wazuh-alerts-*` indices had no naturally-occurring
+  high-severity alert at hand (only routine SCA compliance checks and
+  `dpkg` install events), so — reusing the same technique already
+  validated in that project's own session notes (`aigis-detect/CLAUDE.md`,
+  2026-07-30/31: append realistic-but-synthetic content to a real,
+  actively-monitored log file rather than hand-typing a fake alert
+  document) — appended two real log lines to the live `dpkg.log`: one
+  routine, one referencing PowerShell/Tor/lateral-movement content. Both
+  triggered genuine Wazuh detections (rule 2902) and were confirmed
+  indexed in Elasticsearch (`wazuh-alerts-2026.08.08`, ids
+  `1786223828.249` and `.746`).
+- Pulled both real alert documents from Elasticsearch and transformed
+  their fields (`rule.id`, `rule.level`, `rule.description`, `agent.name`,
+  `location`, `full_log`) into `alert_raw` text — the transform a real
+  Elastic Watcher/n8n "Format alert" step would need to do, since Wazuh's
+  native JSON schema doesn't match this pipeline's plaintext input.
+  POSTed both through the actual n8n webhook (`POST
+  /webhook/soc-alert`), not `/triage` directly.
+- Routine alert → `status: "completed"`, `severity: "low"`, correct.
+- Suspicious alert → `status: "completed"`, `severity: "medium"`
+  (not High). Real finding, not a bug: the injected IP had to be written
+  as `185-220-101-5` (hyphens) to survive as a valid `dpkg` package name
+  field — `tools.py`'s IP detection expects dotted notation, so it
+  correctly did *not* match it against `_FAKE_INTEL_DB`'s Tor exit node
+  entry. The model still correctly flagged the obfuscated-PowerShell
+  wording and cited T1059.001, landing on a defensible Medium rather
+  than hallucinating a threat-intel match that didn't actually resolve.
+  **Real integration takeaway**: a genuine Wazuh/Elastic integration
+  needs IOCs preserved in their native format (dotted IPs, not munged
+  into a log-line-safe string) for `enrich_ioc` to match them — worth
+  keeping in mind whenever a real "Format alert" transform step is built
+  for a live SIEM (see the other still-open "OTX AlienVault" /real KB
+  items above).
 
 ## Notes (2026-08-08) — regression eval baseline
 - First real run (before any fix) was 3/5: `enrichment_node` sometimes
