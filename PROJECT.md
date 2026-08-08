@@ -18,9 +18,13 @@ VirusTotal/AbuseIPDB lookups when API keys are configured, mocked
 (`_FAKE_INTEL_DB`) otherwise.
 Includes a real trigger via a dedicated n8n instance (Webhook -> `POST
 /triage` -> Respond to Webhook, see `n8n/workflow-triage.json`).
+Includes a human-approval gate: a High/Critical report pauses the graph
+(`POST /triage` returns `status="pending_approval"`) until `POST
+/triage/{thread_id}/approve` resolves it.
 Not yet included: OTX AlienVault, publishing the report to
-Slack/Obsidian, human-in-the-loop before destructive actions, evaluation
-with a regression set. See Roadmap.
+Slack/Obsidian, evaluation with a regression set, an n8n/Slack step for
+the approval gate itself (currently only reachable via `/docs` or
+`curl`). See Roadmap.
 
 ## Architecture
 The supervisor decides the next step based on accumulated state; each
@@ -92,14 +96,31 @@ to the supervisor. Full diagram in README.md.
   `tools.py` rather than assuming a specific model's calling style,
   since a weaker/smaller model producing either shape is expected
   behavior, not an edge case.
+- **Human-approval gate via LangGraph `interrupt()`, not a separate
+  workflow/state machine**: a new `await_approval` node calls
+  `interrupt()` when `report_node` extracts a High/Critical severity from
+  the report text (`agents.py`'s `_extract_severity`, regex over the
+  "Severity: ..." line, defaults to "high" — i.e. fails closed — if the
+  model didn't follow the format). The graph is compiled with
+  `MemorySaver` (`orchestrator.py`) so the pause/resume actually works;
+  `api.py` exposes it as `POST /triage` (returns `status:
+  "pending_approval"` + `thread_id` instead of hanging) and `POST
+  /triage/{thread_id}/approve` (resumes via `Command(resume=...)`).
+  Low/Medium severity is unaffected — same synchronous `status:
+  "completed"` response as before, so the existing n8n workflow keeps
+  working for those. `MemorySaver` is in-process only: a pending approval
+  is lost if the API restarts before someone calls `/approve` — fine for
+  a demo, not for production (needs a persistent checkpointer).
 
 ## Constraints
 - IOC enrichment uses real APIs (VirusTotal, AbuseIPDB) when keys are
   configured in `.env`, and `_FAKE_INTEL_DB` in tools.py otherwise — keys
   must never be hardcoded, only read from `.env` (see `.env.example`).
-- No human-in-the-loop yet: don't wire this up to real destructive
-  actions (isolate a host, block an IP) without adding that approval node
-  first.
+- Human approval (`await_approval` node) only gates the *triage report*
+  reaching `status: "completed"` for High/Critical alerts — there is
+  still no node that takes a real destructive action (isolate a host,
+  block an IP). Don't wire one up without routing it through this same
+  gate first.
 
 ## Roadmap
 - [ ] Replace `data/mitre_notes.md` with real notes (HTB, Elastic rules,
@@ -115,7 +136,12 @@ to the supervisor. Full diagram in README.md.
       `POST /triage` on the internal Docker network -> Respond to
       Webhook), running as its own service in `docker-compose.yml`.
 - [ ] Publish the triage report to Slack/Obsidian from that n8n workflow.
-- [ ] "Awaiting human approval" node before destructive actions.
+- [x] "Awaiting human approval" node for High/Critical reports
+      (`await_approval` in `agents.py`, `POST /triage/{thread_id}/approve`
+      in `api.py`). Still no node takes a real destructive action, and
+      the n8n workflow doesn't yet have an approve step of its own (only
+      reachable via `/docs`/`curl`) — natural next step once report
+      publishing (above) exists.
 - [ ] Regression set (alert, report) to measure triage quality across
       prompt/model changes.
 - [x] GPU passthrough for the containerized `ollama` service, combined

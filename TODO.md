@@ -6,7 +6,8 @@
 - [ ] Test the n8n workflow against a real Elastic/Wazuh alert (so far
       only tested with the sample EDR alert)
 - [ ] Publish the triage report to Slack/Obsidian from the n8n workflow
-- [ ] Human-approval node before destructive actions
+- [ ] Approve step for the n8n workflow itself (currently `/approve` is
+      only reachable via `/docs`/`curl`, not from the webhook flow)
 - [ ] Regression set (alert, report) to evaluate prompt/model changes
 - [x] Initialize git + push to GitHub as a portfolio piece
 - [ ] Add a GIF of the pipeline running to the README
@@ -45,6 +46,15 @@
       list, or as an `"ip:port"` string instead of split IP/port — both
       are real shapes `llama3.2:3b` produces (see note below), and the
       unsplit form silently missed matches in `_FAKE_INTEL_DB`/real APIs.
+- [x] Human-approval node (`await_approval` in `agents.py`) for
+      High/Critical severity reports, via LangGraph `interrupt()` +
+      `MemorySaver` checkpointer. `POST /triage` returns
+      `status="pending_approval"` + `thread_id` instead of the finished
+      report; `POST /triage/{thread_id}/approve` resumes it. Low/Medium
+      severity is unaffected (still synchronous `status="completed"`).
+      Verified end-to-end against the real stack (not mocked): a
+      High-severity alert paused correctly, `/approve` resolved it, and
+      an unknown `thread_id` 404s. 3 new tests in `tests/test_api.py`.
 
 ## Correction (2026-08-08)
 A previous session recorded a **fabricated** benchmark for GPU

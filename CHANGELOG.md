@@ -27,6 +27,15 @@
   `"host:port"` strings before matching — both are shapes `llama3.2:3b`
   produces that the previous model didn't. Covered by new tests in
   `tests/test_tools.py`.
+- Human-approval gate: a new `await_approval` node (`agents.py`) uses
+  LangGraph's `interrupt()` to pause the pipeline whenever the report's
+  extracted severity is High/Critical. `build_graph()` now compiles with
+  a `MemorySaver` checkpointer so pause/resume works. `POST /triage`
+  returns `status: "pending_approval"` + `thread_id` for those alerts
+  instead of the finished report; a new `POST
+  /triage/{thread_id}/approve` endpoint resumes the run. Low/Medium
+  severity is unchanged (`status: "completed"` synchronously). 3 new
+  tests in `tests/test_api.py`.
 ### Changed
 - Translated the entire repo (docs, comments, docstrings, sample data) to English.
 - Dockerfile now runs `uvicorn api:app` by default (port 8000 exposed); the
