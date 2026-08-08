@@ -115,10 +115,23 @@ def _query_abuseipdb(indicator: str) -> str | None:
     )
 
 
-@tool
-def enrich_ioc(indicator: str) -> str:
-    """Looks up the reputation of an indicator of compromise (IP, hash, domain, port).
-    Returns threat intelligence context for that indicator."""
+def _split_host_port(indicator: str) -> tuple[str, str] | None:
+    """Splits 'host:port' or 'ip:port' into its two parts. Models sometimes
+    pass IP:port as a single indicator instead of two separate tool calls;
+    _FAKE_INTEL_DB and the real APIs key IPs and ports separately, so an
+    unsplit 'ip:port' string silently misses a match on either."""
+    host, sep, port = indicator.rpartition(":")
+    if sep and host and port.isdigit():
+        return host, port
+    return None
+
+
+def _enrich_one(indicator: str) -> str:
+    split = _split_host_port(indicator)
+    if split:
+        host, port = split
+        return f"{_enrich_one(host)} | {_enrich_one(port)}"
+
     if VIRUSTOTAL_API_KEY or ABUSEIPDB_API_KEY:
         results = [r for r in (_query_virustotal(indicator), _query_abuseipdb(indicator)) if r]
         if results:
@@ -128,6 +141,17 @@ def enrich_ioc(indicator: str) -> str:
         indicator,
         f"No matches in feeds for '{indicator}'. Manual review recommended.",
     )
+
+
+@tool
+def enrich_ioc(indicator: str | list[str]) -> str:
+    """Looks up the reputation of an indicator of compromise (IP, hash, domain, port).
+    Returns threat intelligence context for that indicator. Accepts either a
+    single indicator or a list of indicators (some models batch several IOCs
+    into one call instead of calling the tool once per IOC)."""
+    if isinstance(indicator, str):
+        return _enrich_one(indicator)
+    return "\n".join(f"{ioc}: {_enrich_one(ioc)}" for ioc in indicator)
 
 
 @tool

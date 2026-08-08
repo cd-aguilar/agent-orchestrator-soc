@@ -21,3 +21,14 @@ def test_host_criticality_critical_host():
 def test_host_criticality_standard_host():
     result = get_host_criticality.invoke({"hostname": "WKS-FINANCE-07"})
     assert "standard" in result.lower()
+
+
+def test_enrich_ioc_splits_ip_and_port():
+    result = enrich_ioc.invoke({"indicator": "185.220.101.5:443"})
+    assert "malicious" in result.lower()
+
+
+def test_enrich_ioc_accepts_list_of_indicators():
+    result = enrich_ioc.invoke({"indicator": ["185.220.101.5", "8.8.8.8"]})
+    assert "malicious" in result.lower()
+    assert "no matches" in result.lower()
