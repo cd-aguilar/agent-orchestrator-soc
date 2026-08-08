@@ -1,0 +1,47 @@
+[
+  {
+    "id": "sample_high_powershell_smb",
+    "description": "Original CLI demo alert: obfuscated PowerShell, outbound to a known Tor exit node, SMB traffic to the domain controller.",
+    "alert_raw": "[EDR ALERT] Host: WKS-FINANCE-07\nProcess: powershell.exe -EncodedCommand JABzAD0ATgB...\nParent process: winword.exe\nOutbound connection detected: 185.220.101.5:443\nAdditional internal traffic: WKS-FINANCE-07 -> DC01:445\n",
+    "expected_severity": ["high", "critical"],
+    "expect_approval_gate": true,
+    "enrichment_contains_any": ["tor exit node"],
+    "informational_techniques": ["T1059.001", "T1021.002"]
+  },
+  {
+    "id": "benign_vpn_login",
+    "description": "Routine VPN login from a known-clean internal IP during business hours — should not be escalated.",
+    "alert_raw": "[INFO] Host: WKS-DEV-22\nUser logged in via VPN from a known corporate IP 10.0.0.5 during business hours. No anomalies detected.\n",
+    "expected_severity": ["low"],
+    "expect_approval_gate": false,
+    "enrichment_contains_any": ["no matches"],
+    "informational_techniques": []
+  },
+  {
+    "id": "credential_dumping_domain_controller",
+    "description": "LSASS access consistent with credential dumping, on a critical host, source process not a known EDR/AV.",
+    "alert_raw": "[EDR ALERT] Host: DC01\nProcess: procdump64.exe -ma lsass.exe lsass_dump.dmp\nParent process: cmd.exe\nWindows Event 4656 generated: ObjectName contains lsass.exe\nSource process is NOT a recognized EDR/AV binary.\n",
+    "expected_severity": ["high", "critical"],
+    "expect_approval_gate": true,
+    "enrichment_contains_any": ["critical asset"],
+    "informational_techniques": ["T1003"]
+  },
+  {
+    "id": "unknown_external_ip_standard_host",
+    "description": "Outbound connection to an IP with no reputation data, from a standard endpoint — absence of intel should not be treated as evidence of maliciousness.",
+    "alert_raw": "[EDR ALERT] Host: WKS-DEV-22\nOutbound connection detected: 203.0.113.50:8080\nNo other suspicious activity observed on this host in the last 24h.\n",
+    "expected_severity": ["low", "medium"],
+    "expect_approval_gate": false,
+    "enrichment_contains_any": ["no matches"],
+    "informational_techniques": []
+  },
+  {
+    "id": "known_malicious_ip_standard_host",
+    "description": "Beacon-like traffic to a known-malicious IP (Tor exit node) from a standard (non-critical) host — should still escalate on IOC reputation alone.",
+    "alert_raw": "[EDR ALERT] Host: WKS-SALES-14\nRepeated outbound connections detected every 60s to 185.220.101.5:443 over the last hour.\nNo user-initiated browser activity correlated with this traffic.\n",
+    "expected_severity": ["high", "critical"],
+    "expect_approval_gate": true,
+    "enrichment_contains_any": ["tor exit node"],
+    "informational_techniques": []
+  }
+]

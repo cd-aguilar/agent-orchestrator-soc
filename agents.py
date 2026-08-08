@@ -82,8 +82,11 @@ def enrichment_node(state: TriageState) -> dict:
     llm_with_tools = llm.bind_tools([enrich_ioc, get_host_criticality])
     prompt = (
         "You are a tier-1 SOC analyst. Extract the relevant indicators "
-        "(IPs, ports, hostnames) from the following alert and use the "
-        "available tools to enrich them.\n\n"
+        "from the following alert and enrich each one with the correct "
+        "tool: use enrich_ioc for IPs, ports, hashes, and domains (threat "
+        "intel reputation lookup); use get_host_criticality for hostnames "
+        "(asset criticality lookup) — a hostname is not a threat intel "
+        "indicator, don't pass it to enrich_ioc.\n\n"
         f"Alert:\n{state['alert_raw']}"
     )
     response = llm_with_tools.invoke(prompt)
@@ -126,6 +129,19 @@ def report_node(state: TriageState) -> dict:
         "sections: Summary, Severity (Low/Medium/High/Critical), Enriched "
         "Indicators, Identified MITRE ATT&CK Techniques, and Recommended "
         "Action.\n\n"
+        "Severity rules — read the Enrichment section carefully and tell "
+        "these two cases apart:\n"
+        "- POSITIVE finding (e.g. 'malicious', 'Tor exit node', an abuse "
+        "confidence score, a VirusTotal detection count above 0): severity "
+        "must be at least High, even if the rest of the alert looks "
+        "routine — a confirmed-malicious indicator is not Low/Medium on "
+        "its own.\n"
+        "- NO DATA (e.g. 'No matches in feeds', 'manual review "
+        "recommended', an internal/RFC1918 IP with no reputation entry): "
+        "this is NOT evidence of malicious activity. Do not escalate "
+        "severity on absence of data alone — base severity only on the "
+        "other concrete signals in the alert and research (e.g. "
+        "obfuscation, credential access, lateral movement).\n\n"
         f"Original alert:\n{state['alert_raw']}\n\n"
         f"Enrichment:\n{state['enrichment']}\n\n"
         f"Research:\n{state['research']}"
