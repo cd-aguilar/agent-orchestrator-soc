@@ -41,6 +41,22 @@
   /triage/{thread_id}/approve` -> Respond to Webhook), mirroring the
   existing triage workflow, so the approval gate above is reachable from
   a SIEM/webhook flow and not only `/docs`/`curl`. Tested end-to-end.
+- `eval/cases.json` + `eval/run_regression.py`: a regression eval — 5
+  fixed alerts run against the real graph (real Ollama, real ChromaDB),
+  checked for severity/approval-gate/enrichment properties rather than
+  exact text. Run manually (`python -m eval.run_regression`), not part
+  of CI. Current baseline: 4/5 — see PROJECT.md Key decisions for what
+  the first real run caught and how the prompts were tightened.
+### Changed (prompts)
+- `enrichment_node`'s prompt now explicitly states which tool is for
+  what (`enrich_ioc` for IPs/hashes/domains, `get_host_criticality` for
+  hostnames), after the regression eval caught it calling `enrich_ioc`
+  on a bare hostname.
+- `report_node`'s prompt now has an explicit severity rule contrasting a
+  POSITIVE enrichment finding (malicious/Tor/abuse score → severity at
+  least High) against NO DATA (e.g. "No matches in feeds" → not evidence
+  of malice, don't escalate on it alone) — the regression eval caught a
+  confirmed-malicious IOC not reliably escalating severity.
 ### Changed
 - Translated the entire repo (docs, comments, docstrings, sample data) to English.
 - Dockerfile now runs `uvicorn api:app` by default (port 8000 exposed); the

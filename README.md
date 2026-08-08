@@ -222,6 +222,30 @@ PYTHONPATH=. pytest tests/ -v   # doesn't require Ollama running
 ruff check .                    # lint
 ```
 
+### Regression eval
+
+Unit tests mock the graph out, so they can't catch a prompt or model
+change quietly making triage *worse* (wrong severity, wrong tool
+choice). `eval/run_regression.py` runs a fixed set of alerts
+(`eval/cases.json`) end-to-end against the real graph — real Ollama,
+real ChromaDB — and checks severity, whether the approval gate fired,
+and enrichment content. Requires Ollama running and the Chroma index
+built (`python ingest_kb.py`); not part of CI (no GPU there). Run it
+after any change to the prompts or the model:
+
+```bash
+python -m eval.run_regression
+# or against the container's Ollama:
+docker compose exec app python -m eval.run_regression
+```
+
+Current accepted baseline is **4/5** — see `TODO.md`'s 2026-08-08 note
+for the one known, documented gap (a benign alert over-classified as
+Medium instead of Low). A regression run should be compared against that
+baseline, not against a 5/5 that was deliberately not chased (see
+PROJECT.md Key decisions on the overfitting risk of over-tuning a
+prompt against 5 fixed cases).
+
 ## Security: API keys and secrets
 
 This project runs 100% locally (Ollama), so it doesn't need any key by

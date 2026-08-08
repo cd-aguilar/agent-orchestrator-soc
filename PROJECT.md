@@ -22,11 +22,15 @@ Includes a human-approval gate: a High/Critical report pauses the graph
 (`POST /triage` returns `status="pending_approval"`) until `POST
 /triage/{thread_id}/approve` resolves it — reachable either directly or
 via a second n8n workflow (`n8n/workflow-approve.json`).
+Includes a regression eval (`eval/cases.json` + `eval/run_regression.py`)
+that runs a fixed set of alerts against the real graph and checks
+severity/approval-gate/enrichment properties — current accepted baseline
+is 4/5 (see Key decisions and TODO.md's 2026-08-08 note for the known
+gap).
 Not yet included: OTX AlienVault, publishing the report to
-Slack/Obsidian, evaluation with a regression set, a chat button
-(Slack/Teams) for the approval gate — this project's n8n has no chat
-credentials, so approval is still a manual webhook/`curl`/`/docs` call.
-See Roadmap.
+Slack/Obsidian, a chat button (Slack/Teams) for the approval gate — this
+project's n8n has no chat credentials, so approval is still a manual
+webhook/`curl`/`/docs` call. See Roadmap.
 
 ## Architecture
 The supervisor decides the next step based on accumulated state; each
@@ -113,6 +117,25 @@ to the supervisor. Full diagram in README.md.
   working for those. `MemorySaver` is in-process only: a pending approval
   is lost if the API restarts before someone calls `/approve` — fine for
   a demo, not for production (needs a persistent checkpointer).
+- **Regression eval as a script against the real stack, not mocked
+  pytest cases**: `eval/run_regression.py` runs 5 fixed alerts through
+  `build_graph()` with real Ollama/ChromaDB and checks structural
+  properties (severity in an expected set, whether the approval gate
+  fired, enrichment contains expected substrings) — not exact-text
+  matching, since LLM output isn't stable across runs. Deliberately
+  separate from `pytest`/CI, which mock the graph and have no
+  Ollama/GPU available; run manually after a prompt or model change.
+  First real run (3/5) caught two genuine quality regressions:
+  `enrichment_node` sometimes called `enrich_ioc` on a hostname instead
+  of `get_host_criticality`, and a confirmed-malicious IOC didn't
+  reliably escalate severity to High. Tightening the prompts (explicit
+  tool-selection guidance; an explicit POSITIVE-finding-vs-NO-DATA
+  severity rule, since a first attempt at the severity rule
+  overcorrected and pushed benign/no-data alerts to High too) got to
+  4/5. The remaining case (a benign alert landing on Medium instead of
+  Low) is left as a documented baseline gap rather than chased to 5/5 —
+  further prompt tuning against a 5-case set risks overfitting to those
+  exact cases instead of improving general judgment.
 
 ## Constraints
 - IOC enrichment uses real APIs (VirusTotal, AbuseIPDB) when keys are
@@ -144,8 +167,10 @@ to the supervisor. Full diagram in README.md.
       (`n8n/workflow-approve.json`). Still no node takes a real
       destructive action, and there's no chat (Slack/Teams) button —
       natural next step once report publishing (above) exists.
-- [ ] Regression set (alert, report) to measure triage quality across
-      prompt/model changes.
+- [x] Regression set (alert, report) to measure triage quality across
+      prompt/model changes — `eval/cases.json` + `eval/run_regression.py`,
+      run manually against the real stack. Baseline: **4/5** (see Key
+      decisions).
 - [x] GPU passthrough for the containerized `ollama` service, combined
       with switching to a GPU-sized model (`llama3.2:3b`) — 39.7s vs.
       6m17s per triage run. (GPU passthrough alone, with the old

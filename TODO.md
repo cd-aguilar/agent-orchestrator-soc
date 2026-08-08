@@ -6,7 +6,6 @@
 - [ ] Test the n8n workflow against a real Elastic/Wazuh alert (so far
       only tested with the sample EDR alert)
 - [ ] Publish the triage report to Slack/Obsidian from the n8n workflow
-- [ ] Regression set (alert, report) to evaluate prompt/model changes
 - [x] Initialize git + push to GitHub as a portfolio piece
 - [ ] Add a GIF of the pipeline running to the README
 
@@ -63,6 +62,43 @@
       Slack/Teams button — this project's n8n has no chat credentials
       (see PROJECT.md's "Dedicated n8n instance" decision), so approval
       still requires manually calling this webhook or `/docs`.
+- [x] Regression set to evaluate prompt/model changes
+      (`eval/cases.json` + `eval/run_regression.py`): 5 alerts covering
+      the two implemented "escalate to High" paths, one clearly benign
+      alert, one ambiguous/no-data alert, and the credential-dumping
+      path — checked against real Ollama + real ChromaDB (not mocked),
+      not part of `pytest`/CI (no GPU/Ollama there), run manually with
+      `python -m eval.run_regression`. See the 2026-08-08 note below for
+      the current baseline and what it caught on its first real run.
+
+## Notes (2026-08-08) — regression eval baseline
+- First real run (before any fix) was 3/5: `enrichment_node` sometimes
+  called `enrich_ioc("DC01")` instead of `get_host_criticality("DC01")`
+  for a hostname (wrong tool, so the report never surfaced "critical
+  asset"); and, more seriously, a confirmed-malicious IP match
+  (Tor exit node) in the enrichment didn't reliably push severity to
+  High — one case classified a beacon to a known-malicious IP as Low.
+- Fix 1: `enrichment_node`'s prompt now explicitly says which tool is
+  for what (`enrich_ioc` for IPs/hashes/domains, `get_host_criticality`
+  for hostnames) instead of leaving tool selection implicit.
+- Fix 2: `report_node`'s prompt got an explicit severity rule that a
+  POSITIVE enrichment finding (malicious/Tor/abuse score) must be at
+  least High regardless of other context. First retest went to 3/5 in
+  the *other* direction — it started reading "No matches in feeds" as
+  grounds to escalate too, pushing two genuinely benign/no-data alerts
+  to High. Rewrote the rule to explicitly contrast POSITIVE finding vs.
+  NO DATA (naming the literal phrases `tools.py` returns, e.g. "No
+  matches in feeds"), and telling the model absence of data is not
+  evidence of malice. That got it to **4/5**.
+- Remaining known gap: `benign_vpn_login` classifies as Medium instead
+  of Low (over-caution on a routine VPN login with "no anomalies
+  detected" stated explicitly) — a soft calibration miss in the safe
+  direction, not a missed detection. Deliberately left as a documented
+  baseline gap rather than continuing to tune the prompt against a
+  5-case set — the risk of overfitting the prompt to this exact eval
+  (rather than improving general judgment) outweighs closing one
+  Low-vs-Medium borderline call. **4/5 is the accepted baseline**; a
+  future run should be compared against this, not against 5/5.
 
 ## Correction (2026-08-08)
 A previous session recorded a **fabricated** benchmark for GPU
