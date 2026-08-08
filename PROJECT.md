@@ -111,7 +111,7 @@ See TODO.md
 
 ## Technologies
 Python, LangGraph, LangChain (langchain-ollama, langchain-chroma), Ollama
-(llama3.1 + nomic-embed-text), ChromaDB.
+(llama3.2:3b + nomic-embed-text), ChromaDB.
 
 ## Project rules
 - Never commit `chroma_db/` (derived index, rebuilt with `ingest_kb.py`).

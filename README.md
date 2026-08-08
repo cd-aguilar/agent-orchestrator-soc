@@ -25,7 +25,7 @@ flowchart TD
 
     ENR -.-> TI[(VirusTotal / AbuseIPDB / OTX<br/>mocked in tools.py)]
     RES -.-> KB[(ChromaDB<br/>data/*.md via ingest_kb.py)]
-    REP -.-> LLM[(Ollama<br/>llama3.1)]
+    REP -.-> LLM[(Ollama<br/>llama3.2:3b)]
 ```
 
 **Diagram source of truth:** this is a hand-drawn view of the graph. To
@@ -152,7 +152,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt   # includes ruff and pytest
 cp .env.example .env                  # fill in keys if you're using real APIs
 
-ollama pull llama3.1
+ollama pull llama3.2:3b
 ollama pull nomic-embed-text
 
 python ingest_kb.py       # builds the RAG index from data/*.md
@@ -165,7 +165,7 @@ uvicorn api:app --reload  # or: run it as an API instead (see "API" above)
 ```bash
 docker compose up --build
 # in another terminal, the first time, pull the models inside the container:
-docker exec soc-orchestrator-ollama ollama pull llama3.1
+docker exec soc-orchestrator-ollama ollama pull llama3.2:3b
 docker exec soc-orchestrator-ollama ollama pull nomic-embed-text
 docker compose restart app
 # the container runs the API by default: http://localhost:8000/docs

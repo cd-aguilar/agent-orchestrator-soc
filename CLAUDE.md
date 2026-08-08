@@ -10,7 +10,7 @@ No Makefile. Everything runs with:
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-ollama pull llama3.1
+ollama pull llama3.2:3b
 ollama pull nomic-embed-text
 python ingest_kb.py       # builds the RAG index (once, or whenever data/ changes)
 python orchestrator.py    # runs the triage
