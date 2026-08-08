@@ -56,6 +56,11 @@
   handling end-to-end; found that `enrich_ioc`'s IP matching needs
   dotted notation, so a real "Format alert" transform must preserve IOC
   formatting. See TODO.md's 2026-08-08c note.
+- `data/mitre_notes.md`: replaced the 3-technique placeholder with 16
+  original entries across Initial Access through Impact — written for
+  this project, not copied from any vendor or course material.
+- `enrich_ioc` now also queries OTX AlienVault (`_query_otx`, same
+  pattern as VirusTotal/AbuseIPDB) when `OTX_API_KEY` is set in `.env`.
 ### Changed (prompts)
 - `enrichment_node`'s prompt now explicitly states which tool is for
   what (`enrich_ioc` for IPs/hashes/domains, `get_host_criticality` for
@@ -66,6 +71,13 @@
   least High) against NO DATA (e.g. "No matches in feeds" → not evidence
   of malice, don't escalate on it alone) — the regression eval caught a
   confirmed-malicious IOC not reliably escalating severity.
+- `research_node`'s prompt now explicitly warns that the retrieved KB
+  context describes a technique's *typical* behavior, not necessarily
+  this alert — after expanding the KB to 16 techniques made retrieval
+  genuinely selective (previously it always returned all 3 docs), it
+  started citing unstated details (e.g. "regular interval") as if
+  observed. Regression eval went 4/5 → 3/5 → 5/5 (two consecutive runs)
+  across this KB expansion and fix — see PROJECT.md Key decisions.
 ### Changed
 - Translated the entire repo (docs, comments, docstrings, sample data) to English.
 - Dockerfile now runs `uvicorn api:app` by default (port 8000 exposed); the

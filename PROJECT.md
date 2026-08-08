@@ -12,10 +12,10 @@ Security Automation Engineer roles.
 
 ## Scope
 Includes: supervisor graph → enrichment (tool calling) → research (RAG) →
-report, 100% local (Ollama + ChromaDB), with sample data
-(`data/mitre_notes.md`) and threat intel enrichment (`tools.py`) — real
-VirusTotal/AbuseIPDB lookups when API keys are configured, mocked
-(`_FAKE_INTEL_DB`) otherwise.
+report, 100% local (Ollama + ChromaDB), with a 16-technique original
+knowledge base (`data/mitre_notes.md`) and threat intel enrichment
+(`tools.py`) — real VirusTotal/AbuseIPDB/OTX AlienVault lookups when API
+keys are configured, mocked (`_FAKE_INTEL_DB`) otherwise.
 Includes a real trigger via a dedicated n8n instance (Webhook -> `POST
 /triage` -> Respond to Webhook, see `n8n/workflow-triage.json`).
 Includes a human-approval gate: a High/Critical report pauses the graph
@@ -24,13 +24,13 @@ Includes a human-approval gate: a High/Critical report pauses the graph
 via a second n8n workflow (`n8n/workflow-approve.json`).
 Includes a regression eval (`eval/cases.json` + `eval/run_regression.py`)
 that runs a fixed set of alerts against the real graph and checks
-severity/approval-gate/enrichment properties — current accepted baseline
-is 4/5 (see Key decisions and TODO.md's 2026-08-08 note for the known
-gap).
-Not yet included: OTX AlienVault, publishing the report to
-Slack/Obsidian, a chat button (Slack/Teams) for the approval gate — this
-project's n8n has no chat credentials, so approval is still a manual
-webhook/`curl`/`/docs` call. See Roadmap.
+severity/approval-gate/enrichment properties — current baseline is 5/5
+(see Key decisions and TODO.md's 2026-08-08 notes for what got it there).
+Not yet included: a real OTX API key (code is wired, just unconfigured),
+publishing the report to Slack (no chat credentials in this project's
+n8n) — Obsidian publishing was deliberately *not* done, since writing
+alert data into the personal vault would contradict ADR-001; see Roadmap
+for the `reports/`-folder alternative instead.
 
 ## Architecture
 The supervisor decides the next step based on accumulated state; each
@@ -132,10 +132,40 @@ to the supervisor. Full diagram in README.md.
   tool-selection guidance; an explicit POSITIVE-finding-vs-NO-DATA
   severity rule, since a first attempt at the severity rule
   overcorrected and pushed benign/no-data alerts to High too) got to
-  4/5. The remaining case (a benign alert landing on Medium instead of
-  Low) is left as a documented baseline gap rather than chased to 5/5 —
-  further prompt tuning against a 5-case set risks overfitting to those
-  exact cases instead of improving general judgment.
+  4/5, accepted at the time as a baseline rather than chased further
+  (see the KB-expansion entry below for how it later reached 5/5 for a
+  different reason).
+- **Expanding the KB from 3 to 16 techniques regressed the eval to 3/5,
+  for a new reason — RAG-induced hallucination**: with only 3 docs,
+  `research_node`'s k=3 retrieval always returned every doc regardless
+  of the alert, so there was no room to over-match. With 16 real
+  techniques, retrieval became genuinely selective, and on one eval
+  case it started citing a technique's *typical* description ("regular,
+  machine-like interval", "sustained spike in outbound bytes") as if
+  those specific details were present in an alert that only said
+  "outbound connection detected... no other suspicious activity".
+  Fixed by telling `research_node`'s prompt explicitly that the
+  retrieved context describes what a technique typically looks like,
+  not this alert — only state a detail as present if the alert text
+  actually says so. Regression eval passed 5/5 on two consecutive runs
+  afterward. Not fully closed: `research_node`'s free text can still
+  overstate a detail on occasion even though it no longer reliably
+  pushes severity up with it — left as a known soft limitation rather
+  than a fourth prompt-tuning pass, same overfitting-risk reasoning as
+  above.
+- **OTX AlienVault wired the same way as VirusTotal/AbuseIPDB, not
+  behind a different pattern**: `_query_otx` in `tools.py` only runs if
+  `OTX_API_KEY` is set, reports `pulse_info.count` from
+  `GET /indicators/{type}/{indicator}/general`, and falls back to
+  `_FAKE_INTEL_DB` like the others when unset or when the call fails —
+  no key configured yet, this session had none available.
+- **`data/mitre_notes.md` expanded with original content, not copied
+  from the vault's HTB Academy notes**: the vault has substantial real
+  MITRE/threat-hunting notes (`05-Blue-Team/`), but those are HTB course
+  material — licensed content not appropriate to redistribute in a
+  public MIT-licensed repo. Wrote 16 original technique entries instead
+  (same style as the previous 3), covering the tactics a SOC triage tool
+  actually needs: Initial Access through Impact.
 - **Tested against a real Wazuh/Elasticsearch alert, not just synthetic
   ones**: the sibling `aigis-detect` project (same host) runs a real
   Wazuh manager + Elasticsearch. Triggered two genuine alerts on its
@@ -159,11 +189,12 @@ to the supervisor. Full diagram in README.md.
   gate first.
 
 ## Roadmap
-- [ ] Replace `data/mitre_notes.md` with real notes (HTB, Elastic rules,
-      vault export).
+- [x] Replace `data/mitre_notes.md`'s placeholder with a real (original,
+      not copied) 16-technique knowledge base.
 - [x] Connect `tools.py` to real APIs (VirusTotal, AbuseIPDB) with
       rate-limit handling and `.env` keys.
-- [ ] Connect `tools.py` to OTX AlienVault or your own MCP servers.
+- [x] Connect `tools.py` to OTX AlienVault — code wired (`_query_otx`),
+      no `OTX_API_KEY` configured yet.
 - [x] Expose the pipeline over HTTP (`api.py`, `POST /triage`, Swagger at
       `/docs`) so it can be triggered by a webhook instead of the CLI only.
 - [x] Deploy it somewhere reachable: `https://soc-api.aigis-cloud.com`, via
@@ -173,7 +204,9 @@ to the supervisor. Full diagram in README.md.
       Webhook), running as its own service in `docker-compose.yml`.
 - [x] Test that n8n workflow against a real Wazuh/Elasticsearch alert
       (not just the sample EDR text) — see Key decisions.
-- [ ] Publish the triage report to Slack/Obsidian from that n8n workflow.
+- [ ] Publish the triage report to Slack (no credentials yet) or to a
+      `reports/` folder in this repo (Obsidian was ruled out — see
+      Scope).
 - [x] "Awaiting human approval" node for High/Critical reports
       (`await_approval` in `agents.py`, `POST /triage/{thread_id}/approve`
       in `api.py`), plus an n8n webhook for it

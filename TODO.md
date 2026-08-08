@@ -1,11 +1,14 @@
 # TODO
 
 ## Pending
-- [ ] Replace `data/mitre_notes.md` with a real knowledge base
-- [ ] Connect `enrich_ioc` to OTX AlienVault or a custom MCP server
-- [ ] Publish the triage report to Slack/Obsidian from the n8n workflow
+- [ ] Publish the triage report to Slack (still no Slack credentials in
+      this project's n8n — see PROJECT.md's "Dedicated n8n instance"
+      decision). Obsidian publishing intentionally not done — would
+      contradict ADR-001 (don't mix alert data into the personal vault);
+      see the "reports/ folder" item below instead.
 - [x] Initialize git + push to GitHub as a portfolio piece
-- [ ] Add a GIF of the pipeline running to the README
+- [ ] Add a GIF of the pipeline running to the README (blocked: no
+      ffmpeg/asciinema installed in this environment yet)
 
 ## In progress
 - [ ]
@@ -68,6 +71,42 @@
       not part of `pytest`/CI (no GPU/Ollama there), run manually with
       `python -m eval.run_regression`. See the 2026-08-08 note below for
       the current baseline and what it caught on its first real run.
+- [x] Replaced `data/mitre_notes.md`'s 3-technique placeholder with 16
+      original entries across Initial Access, Execution, Persistence,
+      Privilege Escalation, Defense Evasion, Credential Access,
+      Discovery, Lateral Movement, C2, Exfiltration, and Impact —
+      written for this project, not copied from HTB Academy course
+      material (that's licensed content, not appropriate for a public
+      MIT repo) or any vendor source. Rebuilt the Chroma index (both the
+      local `chroma_db/` and the container's `chroma_data` volume).
+- [x] Connected `enrich_ioc` to OTX AlienVault (`_query_otx` in
+      `tools.py`, same pattern as VirusTotal/AbuseIPDB — only runs if
+      `OTX_API_KEY` is set in `.env`, reports `pulse_info.count` from
+      `GET /indicators/{IPv4,file,domain}/{indicator}/general`). No key
+      configured yet (none available this session) — falls back to
+      `_FAKE_INTEL_DB` exactly like before until one is added.
+- [x] Fixed a real hallucination the KB expansion surfaced: with only 3
+      KB docs, `research_node`'s retrieval (k=3) always returned every
+      doc regardless of the alert, so it never had room to over-match.
+      With 16 techniques, retrieval became genuinely selective — and on
+      the `unknown_external_ip_standard_host` eval case, it started
+      citing T1071.001's *typical* description ("regular, machine-like
+      interval", "sustained spike in outbound bytes") as if those
+      specific details were observed in the alert, when the alert only
+      said "outbound connection detected... no other suspicious
+      activity". Regression eval dropped to 3/5. Fixed by adding an
+      explicit instruction to `research_node`'s prompt: the retrieved
+      context describes what a technique typically looks like, not this
+      alert — only state a specific detail as present if the alert text
+      actually says so. Regression eval passed **5/5 on two consecutive
+      runs** afterward (including the previously-accepted
+      Low-vs-Medium gap). Residual issue, not fully closed: research
+      _node's free-text output can still overstate a detail (observed
+      once post-fix, "regular interval" again) even though it no longer
+      reliably pushes severity up — the downstream severity rule seems
+      to compensate better than the root cause is fixed. Left as a
+      known soft limitation rather than a fourth prompt-tuning pass;
+      same overfitting-risk reasoning as the earlier severity-rule note.
 
 ## Notes (2026-08-08c) — tested against a real Wazuh/Elasticsearch alert
 - The `aigis-detect` stack (sibling project, same host) has a real,

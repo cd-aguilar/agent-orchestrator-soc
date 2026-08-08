@@ -270,20 +270,26 @@ committed.**
 
 ## Roadmap
 
-1. **Real data**: replace `data/mitre_notes.md` with your own HTB notes,
-   Elastic detection rules, or an export from your knowledge vault.
-2. **Real tools**: connect `tools.py` to real APIs (VirusTotal,
-   AbuseIPDB) or, better, to your own MCP servers.
-3. **Real trigger**: done — the pipeline is reachable over HTTP (`POST
-   /triage`) and wired into an n8n workflow (see "n8n workflow" above).
-   What's left: point it at a real Elastic/Wazuh alert instead of the
-   sample one, and publish the resulting report to Slack or Obsidian.
-4. **Human in the loop**: add an "awaiting approval" node before any
-   destructive action (isolate a host, block an IP) — the standard
-   pattern for production security agents.
-5. **Evaluation**: log (alert, report) pairs and build a regression set
-   to measure whether prompt/model changes improve or degrade triage
-   quality.
+1. **Real data**: done — `data/mitre_notes.md` has 16 original technique
+   entries (Initial Access through Impact), not a 3-entry placeholder.
+   Swap in your own detection rules/runbook notes as you build them.
+2. **Real tools**: done — `tools.py` connects to VirusTotal, AbuseIPDB,
+   and OTX AlienVault when their API keys are set in `.env` (falls back
+   to a mock otherwise). Wiring your own MCP servers instead is still a
+   reasonable next step.
+3. **Real trigger**: done — reachable over HTTP (`POST /triage`), wired
+   into an n8n workflow, and tested against a real Wazuh/Elasticsearch
+   alert (not just the sample one) — see PROJECT.md Key decisions.
+   What's left: publish the resulting report somewhere (Slack, once this
+   project's n8n has credentials, or a `reports/` folder in this repo —
+   deliberately *not* the personal Obsidian vault, since that would mix
+   alert data with personal notes against this project's own ADR-001).
+4. **Human in the loop**: done — an `await_approval` node pauses any
+   High/Critical report until `POST /triage/{thread_id}/approve`
+   resolves it, reachable directly or via a second n8n workflow.
+5. **Evaluation**: done — `eval/cases.json` + `eval/run_regression.py`
+   run a fixed set of alerts against the real graph and check
+   severity/approval-gate/enrichment properties. Current baseline: 5/5.
 
 ## Portfolio value
 
