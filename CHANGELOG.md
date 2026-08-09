@@ -2,16 +2,6 @@
 
 ## [Unreleased]
 ### Added
-- Slack notifications: both `n8n/workflow-triage.json` and
-  `n8n/workflow-approve.json` now have a "Post report to Slack" node
-  (after the report is written to `reports/`, before Respond to Webhook)
-  that posts severity/thread ID/report path to `#proyecto2aosoc` via an
-  Incoming Webhook app (`soc-triage-bot`). URL read from
-  `$env.SLACK_WEBHOOK_URL` (`.env`, gitignored); `docker-compose.yml`
-  passes it through and sets `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` so the
-  expression can read it. `continueOnFail: true` on the node so a Slack
-  outage never blocks report generation. Closes the last open item on
-  the roadmap.
 - `enrich_ioc` now queries VirusTotal and AbuseIPDB over `requests` when
   `VIRUSTOTAL_API_KEY` / `ABUSEIPDB_API_KEY` are set in `.env`, with timeouts
   and exponential backoff on rate-limit (429) and 5xx responses.

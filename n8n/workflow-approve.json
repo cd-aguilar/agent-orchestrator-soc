@@ -73,24 +73,6 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { \"text\": \":white_check_mark: *Triage \" + $('Build report markdown').item.json.status + \"* — \" + ($('Build report markdown').item.json.alert_id || $('Build report markdown').item.json.thread_id) + \"\\nSeverity: \" + ($('Build report markdown').item.json.severity || \"unknown\") + \"\\nThread: \" + $('Build report markdown').item.json.thread_id + \"\\nReport: reports/\" + $('Build report markdown').item.json.thread_id + \".md\" } }}",
-        "options": {
-          "timeout": 15000
-        }
-      },
-      "id": "3a7d5e20-2f6c-4c3a-9f1a-000000000007",
-      "name": "Post report to Slack",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [775, 300],
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $('Build report markdown').item.json }}",
         "options": {}
@@ -116,9 +98,6 @@
       "main": [[{ "node": "Write report to disk", "type": "main", "index": 0 }]]
     },
     "Write report to disk": {
-      "main": [[{ "node": "Post report to Slack", "type": "main", "index": 0 }]]
-    },
-    "Post report to Slack": {
       "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
     }
   },

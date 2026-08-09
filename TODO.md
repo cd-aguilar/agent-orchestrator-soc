@@ -1,23 +1,17 @@
 # TODO
 
 ## Pending
+- [ ] Publish the triage report to Slack once this project's n8n has
+      credentials (see PROJECT.md's "Dedicated n8n instance" decision).
+      Obsidian publishing intentionally not done — would contradict
+      ADR-001 (don't mix alert data into the personal vault); a
+      `reports/` folder in this repo was built instead (see Done).
+- [x] Initialize git + push to GitHub as a portfolio piece
 
 ## In progress
 - [ ]
 
 ## Done
-- [x] Publish the triage report to Slack — Incoming Webhook app
-      (`soc-triage-bot`, workspace Proyecto1) posting to `#proyecto2aosoc`.
-      "Post report to Slack" node added to both `workflow-triage.json`
-      and `workflow-approve.json` (after the file write, before Respond
-      to Webhook), reading `SLACK_WEBHOOK_URL` via n8n's `$env` (real
-      value stays in `.env`, gitignored; `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`
-      set in `docker-compose.yml` so the expression can read it).
-      `continueOnFail: true` on that node so a Slack outage never blocks
-      report generation. Obsidian publishing intentionally not done —
-      would contradict ADR-001 (don't mix alert data into the personal
-      vault); a `reports/` folder in this repo was built instead.
-- [x] Initialize git + push to GitHub as a portfolio piece
 - [x] Supervisor-worker graph with LangGraph (enrichment, research, report)
 - [x] Local RAG over `data/*.md` with Ollama + ChromaDB
 - [x] Mocked threat intel + host criticality (tools.py)

@@ -175,9 +175,11 @@ curl -X POST http://localhost:5679/webhook/soc-approve \
   -d '{"thread_id": "wazuh-100002", "decision": "approved"}'
 ```
 
-This still requires a human to actually decide and call it — the Slack
-post below (see "Report publishing") is a notification, not an
-interactive button, so there's no one-click approve/deny from chat yet.
+This still requires a human (or whatever's on the other end of that
+webhook) to actually decide and call it — there's no Slack/Teams button
+wired up yet, since this project's n8n instance has no chat credentials
+configured (see "Why this stack" below on why it doesn't reuse the other
+project's n8n).
 
 ### Report publishing
 
@@ -197,15 +199,10 @@ is not allowed`). `docker-compose.yml`'s `n8n` service sets
 `N8N_RESTRICT_FILE_ACCESS_TO=/reports` (matching the
 `./reports:/reports` volume mount) to allow it.
 
-Both workflows also post a short notification to Slack (`#proyecto2aosoc`,
-via an Incoming Webhook) right after the report is written to disk —
-severity, thread ID, and the `reports/<thread_id>.md` path. The node
-reads the webhook URL from `$env.SLACK_WEBHOOK_URL` (set in `.env`,
-never committed) and has `continueOnFail: true`, so a Slack outage never
-blocks report generation. Obsidian publishing was deliberately skipped,
-since writing alert data into the personal vault this repo's author also
-uses for notes would contradict this project's own ADR-001 (see
-PROJECT.md).
+Slack publishing is the natural next step once this project's n8n has
+credentials — Obsidian publishing was deliberately skipped, since
+writing alert data into the personal vault this repo's author also uses
+for notes would contradict this project's own ADR-001 (see PROJECT.md).
 
 ## Why this stack
 
@@ -312,10 +309,11 @@ committed.**
 3. **Real trigger**: done — reachable over HTTP (`POST /triage`), wired
    into an n8n workflow, tested against a real Wazuh/Elasticsearch alert
    (not just the sample one), and every run publishes the report to a
-   `reports/` folder in this repo and posts a notification to Slack (see
-   "Report publishing" below). Deliberately *not* the personal Obsidian
-   vault, since that would mix alert data with personal notes against
-   this project's own ADR-001.
+   `reports/` folder in this repo (see "Report publishing" below).
+   What's left: also publish to Slack, once this project's n8n has
+   credentials — deliberately *not* the personal Obsidian vault, since
+   that would mix alert data with personal notes against this project's
+   own ADR-001.
 4. **Human in the loop**: done — an `await_approval` node pauses any
    High/Critical report until `POST /triage/{thread_id}/approve`
    resolves it, reachable directly or via a second n8n workflow.
