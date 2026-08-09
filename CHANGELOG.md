@@ -55,6 +55,10 @@
   Needed `N8N_RESTRICT_FILE_ACCESS_TO=/reports` on the `n8n` service —
   n8n's file nodes reject writes outside an explicit allowlist by
   default.
+- `docs/demo.gif` for the README: `scripts/make_demo_gif.py` renders a
+  real captured transcript (`docs/cli_demo_transcript.txt`, from
+  `python orchestrator.py`) as a typewriter-effect terminal GIF using
+  Pillow's GIF encoder — no screen recording, no ffmpeg.
 ### Validated
 - Tested the n8n webhook against a real Wazuh/Elasticsearch alert (not
   just the sample EDR text): triggered two genuine detections on a

@@ -181,6 +181,15 @@ to the supervisor. Full diagram in README.md.
   writes outside an explicit allowlist by default; this wasn't
   documented anywhere obvious, found by running it and reading the
   error ("Access to the file is not allowed").
+- **README GIF rendered from a real transcript with Pillow, not screen
+  recorded**: `choco install ffmpeg` needed admin rights unavailable
+  this session; a real screen recording also wasn't attempted, since
+  there was no guaranteed visible terminal window to target and doing
+  it blind risked capturing unintended desktop content.
+  `scripts/make_demo_gif.py` instead renders `docs/cli_demo_transcript.txt`
+  (a real, captured `python orchestrator.py` run) as a typewriter-effect
+  terminal GIF using only Pillow's native GIF encoder — no ffmpeg, no
+  video pipeline, fully reproducible from a text file.
 - **Tested against a real Wazuh/Elasticsearch alert, not just synthetic
   ones**: the sibling `aigis-detect` project (same host) runs a real
   Wazuh manager + Elasticsearch. Triggered two genuine alerts on its

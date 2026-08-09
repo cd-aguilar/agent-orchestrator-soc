@@ -7,8 +7,6 @@
       ADR-001 (don't mix alert data into the personal vault); a
       `reports/` folder in this repo was built instead (see Done).
 - [x] Initialize git + push to GitHub as a portfolio piece
-- [ ] Add a GIF of the pipeline running to the README (blocked: no
-      ffmpeg/asciinema installed in this environment yet)
 
 ## In progress
 - [ ]
@@ -122,6 +120,20 @@
       alert wrote `pending_approval` to the file via the triage webhook,
       then approving via the approve webhook overwrote the same file
       with `status: completed`.
+- [x] GIF of the pipeline running, added to the README. `choco install
+      ffmpeg` needed admin rights this session didn't have ("Acceso
+      denegado" writing to `C:\ProgramData\chocolatey`), and real screen
+      recording wasn't reliable/safe to attempt blind anyway (no
+      guaranteed visible window, risk of capturing unintended desktop
+      content). Used Pillow instead (`pip install pillow`, no admin
+      needed) — no video encoder involved. Captured a real transcript
+      (`echo y | python orchestrator.py`, fixed a cp1252 mojibake byte
+      from Windows' console encoding of the em dash) into
+      `docs/cli_demo_transcript.txt`, then `scripts/make_demo_gif.py`
+      renders it as a typewriter-effect terminal GIF
+      (`docs/demo.gif`, ~7s, 1.4MB) and saves directly via
+      `Image.save(..., save_all=True)` — genuinely reproducible, not a
+      recording of anything.
 
 ## Notes (2026-08-08c) — tested against a real Wazuh/Elasticsearch alert
 - The `aigis-detect` stack (sibling project, same host) has a real,

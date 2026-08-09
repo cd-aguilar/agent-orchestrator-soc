@@ -9,6 +9,13 @@ Built as a portfolio piece for **AI Engineer / Detection Engineer /
 Security Automation Engineer** roles, and as a reusable base for a local
 "second brain" (same stack: Ollama + ChromaDB + LangChain).
 
+![CLI demo: a real triage run, from alert to human-approved High-severity report](docs/demo.gif)
+
+*Real transcript from `python orchestrator.py` (see
+[`docs/cli_demo_transcript.txt`](docs/cli_demo_transcript.txt)), rendered
+as a terminal-style GIF with [`scripts/make_demo_gif.py`](scripts/make_demo_gif.py)
+— no screen recording involved.*
+
 ## Architecture
 
 ```mermaid
@@ -323,5 +330,6 @@ committed.**
   tool a real SOC would actually use.
 - 100% reproducible at zero cost (local model), so any recruiter can
   clone it and run it.
-- Publish it on GitHub with a GIF of it running and a short blog post
-  explaining the supervisor-worker pattern.
+- Done — published on GitHub with a GIF of it running (top of this
+  README). A short blog post explaining the supervisor-worker pattern
+  is still a good next step.
