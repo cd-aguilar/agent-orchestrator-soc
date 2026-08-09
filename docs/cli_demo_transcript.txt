@@ -1,0 +1,40 @@
+
+======================================================================
+APPROVAL REQUIRED — High severity alert requires human approval.
+======================================================================
+**Security Triage Report**
+
+**Summary**
+A potential security incident has been detected involving host WKS-FINANCE-07, with an outbound connection to a Tor exit node (185.220.101.5:443) and additional internal traffic between hosts.
+
+**Severity**
+High
+
+**Enriched Indicators**
+
+* IP associated with a Tor exit node (185.220.101.5:443)
+* Reputation score: malicious (8/10)
+* No matches in feeds for '443' and '445'
+* Manual review recommended
+
+**Identified MITRE ATT&CK Techniques**
+
+1. **T1071.001 - Command and Control (C2) Channel**: Outbound connection detected to Tor exit node
+2. **T1041 - Exfiltration Over C2 Channel**: Connection to known C2 channel, potentially exfiltrating data
+
+**Recommended Action**
+
+1. Investigate the parent process (`winword.exe`) and its encoded command (`JABzAD0ATgB...`)
+2. Analyze the additional internal traffic between `WKS-FINANCE-07` and `DC01:445`
+3. Consider attachment sandboxing, disabling macros by default, and Office "Protected View" as mitigation measures
+4. Escalate to a senior security analyst for manual review due to the presence of a Tor exit node and malicious reputation score
+
+Note: The severity is High due to the confirmed-malicious indicator (Tor exit node) and potential exfiltration over C2 channel, despite the lack of explicit exfiltration mention in the alert.
+
+Approve this triage? [y/N] y
+======================================================================
+TRIAGE REPORT
+======================================================================
+(same report as above)
+
+[Human decision: approved]
