@@ -1,6 +1,18 @@
 {
   "permissions": {
-    "allow": ["Read", "Edit", "Bash(git *)", "Bash(python *)", "Bash(pip *)", "Bash(ollama *)"],
-    "deny": ["Read(.env)", "Bash(rm -rf *)", "Bash(git push --force*)"]
+    "allow": [
+      "Read",
+      "Edit",
+      "Bash(git *)",
+      "Bash(python *)",
+      "Bash(pip *)",
+      "Bash(ollama *)",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/triage -H 'Content-Type: application/json' -d '{ *)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)"
+    ]
   }
 }

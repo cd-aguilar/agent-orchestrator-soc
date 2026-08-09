@@ -27,10 +27,9 @@ that runs a fixed set of alerts against the real graph and checks
 severity/approval-gate/enrichment properties — current baseline is 5/5
 (see Key decisions and TODO.md's 2026-08-08 notes for what got it there).
 Includes report publishing to a `reports/` folder in this repo
-(gitignored) from both n8n workflows, instead of Slack/Obsidian — see
-Key decisions.
-Not yet included: a real OTX API key (code is wired, just unconfigured);
-publishing to Slack (no chat credentials in this project's n8n).
+(gitignored) from both n8n workflows, plus a Slack notification
+(Incoming Webhook, `#proyecto2aosoc`) — see Key decisions.
+Not yet included: a real OTX API key (code is wired, just unconfigured).
 Obsidian publishing was deliberately *not* done, since writing alert
 data into the personal vault would contradict ADR-001.
 
@@ -234,14 +233,16 @@ to the supervisor. Full diagram in README.md.
 - [x] Test that n8n workflow against a real Wazuh/Elasticsearch alert
       (not just the sample EDR text) — see Key decisions.
 - [x] Publish the triage report — to a `reports/` folder in this repo
-      (see Key decisions). Slack still pending (no credentials);
-      Obsidian was ruled out (see Scope).
+      (see Key decisions), and to Slack (`#proyecto2aosoc`, via an
+      Incoming Webhook app) once credentials existed. Obsidian was ruled
+      out (see Scope).
 - [x] "Awaiting human approval" node for High/Critical reports
       (`await_approval` in `agents.py`, `POST /triage/{thread_id}/approve`
       in `api.py`), plus an n8n webhook for it
       (`n8n/workflow-approve.json`). Still no node takes a real
-      destructive action, and there's no chat (Slack/Teams) button —
-      natural next step once report publishing (above) exists.
+      destructive action, and there's no chat (Slack/Teams) *button* to
+      approve inline — the Slack post is a notification, not an
+      interactive prompt.
 - [x] Regression set (alert, report) to measure triage quality across
       prompt/model changes — `eval/cases.json` + `eval/run_regression.py`,
       run manually against the real stack. Baseline: **4/5** (see Key
