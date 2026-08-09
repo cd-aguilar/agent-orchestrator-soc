@@ -26,11 +26,13 @@ Includes a regression eval (`eval/cases.json` + `eval/run_regression.py`)
 that runs a fixed set of alerts against the real graph and checks
 severity/approval-gate/enrichment properties — current baseline is 5/5
 (see Key decisions and TODO.md's 2026-08-08 notes for what got it there).
-Not yet included: a real OTX API key (code is wired, just unconfigured),
-publishing the report to Slack (no chat credentials in this project's
-n8n) — Obsidian publishing was deliberately *not* done, since writing
-alert data into the personal vault would contradict ADR-001; see Roadmap
-for the `reports/`-folder alternative instead.
+Includes report publishing to a `reports/` folder in this repo
+(gitignored) from both n8n workflows, instead of Slack/Obsidian — see
+Key decisions.
+Not yet included: a real OTX API key (code is wired, just unconfigured);
+publishing to Slack (no chat credentials in this project's n8n).
+Obsidian publishing was deliberately *not* done, since writing alert
+data into the personal vault would contradict ADR-001.
 
 ## Architecture
 The supervisor decides the next step based on accumulated state; each
@@ -166,6 +168,19 @@ to the supervisor. Full diagram in README.md.
   public MIT-licensed repo. Wrote 16 original technique entries instead
   (same style as the previous 3), covering the tactics a SOC triage tool
   actually needs: Initial Access through Impact.
+- **Report publishing goes to a `reports/` folder in this repo, not
+  Slack/Obsidian**: Slack has no credentials in this project's n8n (see
+  the dedicated-n8n-instance decision below), and writing alert data
+  into the personal Obsidian vault would directly contradict ADR-001
+  (kept alert data and personal notes in separate trust boundaries on
+  purpose). Both n8n workflows got a Code node (build markdown) ->
+  `convertToFile` (`toText`) -> `readWriteFile` (`write`) chain before
+  "Respond to Webhook", writing `/reports/<thread_id>.md` (mounted from
+  `./reports` on the host, gitignored). Needed
+  `N8N_RESTRICT_FILE_ACCESS_TO=/reports` — n8n's file nodes reject
+  writes outside an explicit allowlist by default; this wasn't
+  documented anywhere obvious, found by running it and reading the
+  error ("Access to the file is not allowed").
 - **Tested against a real Wazuh/Elasticsearch alert, not just synthetic
   ones**: the sibling `aigis-detect` project (same host) runs a real
   Wazuh manager + Elasticsearch. Triggered two genuine alerts on its
@@ -204,9 +219,9 @@ to the supervisor. Full diagram in README.md.
       Webhook), running as its own service in `docker-compose.yml`.
 - [x] Test that n8n workflow against a real Wazuh/Elasticsearch alert
       (not just the sample EDR text) — see Key decisions.
-- [ ] Publish the triage report to Slack (no credentials yet) or to a
-      `reports/` folder in this repo (Obsidian was ruled out — see
-      Scope).
+- [x] Publish the triage report — to a `reports/` folder in this repo
+      (see Key decisions). Slack still pending (no credentials);
+      Obsidian was ruled out (see Scope).
 - [x] "Awaiting human approval" node for High/Critical reports
       (`await_approval` in `agents.py`, `POST /triage/{thread_id}/approve`
       in `api.py`), plus an n8n webhook for it

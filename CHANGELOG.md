@@ -45,8 +45,16 @@
   fixed alerts run against the real graph (real Ollama, real ChromaDB),
   checked for severity/approval-gate/enrichment properties rather than
   exact text. Run manually (`python -m eval.run_regression`), not part
-  of CI. Current baseline: 4/5 — see PROJECT.md Key decisions for what
-  the first real run caught and how the prompts were tightened.
+  of CI. Current baseline: 4/5, later 5/5 — see PROJECT.md Key decisions
+  for what the first real run caught and how the prompts were tightened.
+- Report publishing to a `reports/` folder in this repo (gitignored),
+  from both n8n workflows: Code node (build markdown) -> `convertToFile`
+  (`toText`) -> `readWriteFile` (`write`), writing
+  `/reports/<thread_id>.md`. Chosen over Slack (no credentials) or
+  Obsidian (would contradict ADR-001 — see PROJECT.md Key decisions).
+  Needed `N8N_RESTRICT_FILE_ACCESS_TO=/reports` on the `n8n` service —
+  n8n's file nodes reject writes outside an explicit allowlist by
+  default.
 ### Validated
 - Tested the n8n webhook against a real Wazuh/Elasticsearch alert (not
   just the sample EDR text): triggered two genuine detections on a

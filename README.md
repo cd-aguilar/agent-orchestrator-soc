@@ -172,8 +172,30 @@ This still requires a human (or whatever's on the other end of that
 webhook) to actually decide and call it — there's no Slack/Teams button
 wired up yet, since this project's n8n instance has no chat credentials
 configured (see "Why this stack" below on why it doesn't reuse the other
-project's n8n). That's the natural next step once report publishing is
-in place.
+project's n8n).
+
+### Report publishing
+
+Every run of either workflow also writes the report to
+`reports/<thread_id>.md` in this repo (gitignored — real alert data
+never gets committed). Both `workflow-triage.json` and
+`workflow-approve.json` have a **Code** node that builds a Markdown
+document from the API response, a **Convert to File** node (`toText`),
+and a **Read/Write Files from Disk** node (`write`) before "Respond to
+Webhook" — so a High/Critical alert's file first appears with
+`Status: pending_approval`, then gets overwritten with
+`Status: completed` once `/approve` runs.
+
+This needed one non-obvious fix: n8n's file nodes refuse to read/write
+outside an explicitly allowlisted path by default (`Access to the file
+is not allowed`). `docker-compose.yml`'s `n8n` service sets
+`N8N_RESTRICT_FILE_ACCESS_TO=/reports` (matching the
+`./reports:/reports` volume mount) to allow it.
+
+Slack publishing is the natural next step once this project's n8n has
+credentials — Obsidian publishing was deliberately skipped, since
+writing alert data into the personal vault this repo's author also uses
+for notes would contradict this project's own ADR-001 (see PROJECT.md).
 
 ## Why this stack
 
@@ -278,12 +300,13 @@ committed.**
    to a mock otherwise). Wiring your own MCP servers instead is still a
    reasonable next step.
 3. **Real trigger**: done — reachable over HTTP (`POST /triage`), wired
-   into an n8n workflow, and tested against a real Wazuh/Elasticsearch
-   alert (not just the sample one) — see PROJECT.md Key decisions.
-   What's left: publish the resulting report somewhere (Slack, once this
-   project's n8n has credentials, or a `reports/` folder in this repo —
-   deliberately *not* the personal Obsidian vault, since that would mix
-   alert data with personal notes against this project's own ADR-001).
+   into an n8n workflow, tested against a real Wazuh/Elasticsearch alert
+   (not just the sample one), and every run publishes the report to a
+   `reports/` folder in this repo (see "Report publishing" below).
+   What's left: also publish to Slack, once this project's n8n has
+   credentials — deliberately *not* the personal Obsidian vault, since
+   that would mix alert data with personal notes against this project's
+   own ADR-001.
 4. **Human in the loop**: done — an `await_approval` node pauses any
    High/Critical report until `POST /triage/{thread_id}/approve`
    resolves it, reachable directly or via a second n8n workflow.

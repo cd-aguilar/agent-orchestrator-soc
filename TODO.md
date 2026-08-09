@@ -1,11 +1,11 @@
 # TODO
 
 ## Pending
-- [ ] Publish the triage report to Slack (still no Slack credentials in
-      this project's n8n — see PROJECT.md's "Dedicated n8n instance"
-      decision). Obsidian publishing intentionally not done — would
-      contradict ADR-001 (don't mix alert data into the personal vault);
-      see the "reports/ folder" item below instead.
+- [ ] Publish the triage report to Slack once this project's n8n has
+      credentials (see PROJECT.md's "Dedicated n8n instance" decision).
+      Obsidian publishing intentionally not done — would contradict
+      ADR-001 (don't mix alert data into the personal vault); a
+      `reports/` folder in this repo was built instead (see Done).
 - [x] Initialize git + push to GitHub as a portfolio piece
 - [ ] Add a GIF of the pipeline running to the README (blocked: no
       ffmpeg/asciinema installed in this environment yet)
@@ -107,6 +107,21 @@
       to compensate better than the root cause is fixed. Left as a
       known soft limitation rather than a fourth prompt-tuning pass;
       same overfitting-risk reasoning as the earlier severity-rule note.
+- [x] Publish the triage report to a `reports/` folder in this repo
+      (gitignored — real alert data never gets committed) instead of
+      Slack/Obsidian: both n8n workflows (`workflow-triage.json`,
+      `workflow-approve.json`) now have a Code node ("Build report
+      markdown") -> `n8n-nodes-base.convertToFile` (`toText`) ->
+      `n8n-nodes-base.readWriteFile` (`write`) chain before "Respond to
+      Webhook", writing `/reports/<thread_id>.md`. Required mounting
+      `./reports:/reports` on the `n8n` service in `docker-compose.yml`
+      and setting `N8N_RESTRICT_FILE_ACCESS_TO=/reports` — n8n's file
+      nodes reject writes outside an explicitly allowlisted path by
+      default ("Access to the file is not allowed", found by actually
+      running it, not from docs). Verified end-to-end: a High-severity
+      alert wrote `pending_approval` to the file via the triage webhook,
+      then approving via the approve webhook overwrote the same file
+      with `status: completed`.
 
 ## Notes (2026-08-08c) — tested against a real Wazuh/Elasticsearch alert
 - The `aigis-detect` stack (sibling project, same host) has a real,
