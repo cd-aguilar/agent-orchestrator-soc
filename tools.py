@@ -177,14 +177,15 @@ def _enrich_one(indicator: str) -> str:
 
 
 @tool
-def enrich_ioc(indicator: str | list[str]) -> str:
+def enrich_ioc(indicator: str | list[str | int]) -> str:
     """Looks up the reputation of an indicator of compromise (IP, hash, domain, port).
     Returns threat intelligence context for that indicator. Accepts either a
     single indicator or a list of indicators (some models batch several IOCs
-    into one call instead of calling the tool once per IOC)."""
+    into one call instead of calling the tool once per IOC, sometimes mixing
+    a numeric port in with string IPs/hostnames in the same list)."""
     if isinstance(indicator, str):
         return _enrich_one(indicator)
-    return "\n".join(f"{ioc}: {_enrich_one(ioc)}" for ioc in indicator)
+    return "\n".join(f"{ioc}: {_enrich_one(str(ioc))}" for ioc in indicator)
 
 
 @tool

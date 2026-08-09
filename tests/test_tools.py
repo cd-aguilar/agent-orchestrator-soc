@@ -32,3 +32,8 @@ def test_enrich_ioc_accepts_list_of_indicators():
     result = enrich_ioc.invoke({"indicator": ["185.220.101.5", "8.8.8.8"]})
     assert "malicious" in result.lower()
     assert "no matches" in result.lower()
+
+
+def test_enrich_ioc_accepts_mixed_type_list():
+    result = enrich_ioc.invoke({"indicator": ["185.220.101.5", 443, "WKS-FINANCE-07"]})
+    assert "malicious" in result.lower()
