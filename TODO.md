@@ -1,12 +1,40 @@
 # TODO
 
 ## Pending
-- [ ] Publish the triage report to Slack once this project's n8n has
-      credentials (see PROJECT.md's "Dedicated n8n instance" decision).
-      Obsidian publishing intentionally not done — would contradict
-      ADR-001 (don't mix alert data into the personal vault); a
-      `reports/` folder in this repo was built instead (see Done).
+(none — see Done below)
+
+## Done (2026-08-09) — Slack notifications
+- [x] Publish the triage report notification to Slack. Both n8n
+      workflows (`workflow-triage.json`, `workflow-approve.json`) got a
+      "Post to Slack" HTTP Request node after "Write report to disk",
+      before "Respond to Webhook": posts
+      `:shield: SOC triage — <status> · severity: <severity>` plus
+      thread ID and report path to an Incoming Webhook read from
+      `$env.SLACK_WEBHOOK_URL`. `continueOnFail: true` so a Slack outage
+      never blocks report generation. Needed
+      `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` on the `n8n` service (same
+      requirement the sibling `aigis-detect` project already documented
+      for reading `$env` in node expressions) and `SLACK_WEBHOOK_URL`
+      passed through in `docker-compose.yml`; template added to
+      `.env.example`. Real webhook confirmed working with a direct
+      `curl` test (`"ok"` response) and end-to-end through both n8n
+      workflows — user confirmed messages arrived in the Slack channel.
 - [x] Initialize git + push to GitHub as a portfolio piece
+
+## Notes (2026-08-09) — enrich_ioc mixed-type list
+While verifying the Slack integration end-to-end, `llama3.2:3b` called
+`enrich_ioc` with `indicator` as a list mixing types —
+`['185.220.101.5', 443, 'J...B...', 'WKS-FINANCE-07']` (a string IP, an
+**integer** port, a truncated fragment of the alert's base64 command,
+and a hostname, all in one call) — which failed Pydantic validation
+(`indicator: str | list[str]` doesn't accept an int inside the list)
+and returned a 502 from `/triage`. Widened the type to
+`str | list[str | int]` and coerce each list item to `str` before
+enrichment. Covered by a new test
+(`test_enrich_ioc_accepts_mixed_type_list`). Consistent with this
+project's running finding: `enrich_ioc`'s calling-convention robustness
+is an open-ended surface for a small model, not a closed list of shapes
+to handle once and be done with.
 
 ## In progress
 - [ ]

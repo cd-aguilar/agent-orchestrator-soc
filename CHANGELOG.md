@@ -59,6 +59,17 @@
   real captured transcript (`docs/cli_demo_transcript.txt`, from
   `python orchestrator.py`) as a typewriter-effect terminal GIF using
   Pillow's GIF encoder — no screen recording, no ffmpeg.
+- Slack notifications: both n8n workflows now have a "Post to Slack"
+  HTTP Request node after the report is written to `reports/`, posting
+  `:shield: SOC triage — <status> · severity: <severity>` plus thread
+  ID and report path to an Incoming Webhook
+  (`$env.SLACK_WEBHOOK_URL`). `continueOnFail: true` so a Slack outage
+  never blocks report generation. Needed
+  `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` on the `n8n` service to read
+  `$env` in expressions. Verified with the real webhook end-to-end.
+- `enrich_ioc`'s `indicator` list now also accepts mixed `str | int`
+  elements (`llama3.2:3b` was seen mixing a numeric port in with string
+  IOCs in the same call, which previously 502'd). New test.
 ### Validated
 - Tested the n8n webhook against a real Wazuh/Elasticsearch alert (not
   just the sample EDR text): triggered two genuine detections on a

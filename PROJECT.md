@@ -27,10 +27,10 @@ that runs a fixed set of alerts against the real graph and checks
 severity/approval-gate/enrichment properties — current baseline is 5/5
 (see Key decisions and TODO.md's 2026-08-08 notes for what got it there).
 Includes report publishing to a `reports/` folder in this repo
-(gitignored) from both n8n workflows, instead of Slack/Obsidian — see
-Key decisions.
-Not yet included: a real OTX API key (code is wired, just unconfigured);
-publishing to Slack (no chat credentials in this project's n8n).
+(gitignored) from both n8n workflows, plus a Slack notification
+(Incoming Webhook) posted from both workflows after the report is
+written — see Key decisions.
+Not yet included: a real OTX API key (code is wired, just unconfigured).
 Obsidian publishing was deliberately *not* done, since writing alert
 data into the personal vault would contradict ADR-001.
 
@@ -95,15 +95,19 @@ to the supervisor. Full diagram in README.md.
   2026-08-08 correction for the full story, including a fabricated
   "3m07s" benchmark from an earlier session that never actually ran and
   has since been corrected here.
-- **`enrich_ioc` accepts `str | list[str]`, and splits `"host:port"`
-  before matching**: switching to `llama3.2:3b` surfaced two real
-  tool-calling quirks — it sometimes batches multiple IOCs into one
-  call as a list instead of one call per IOC, and passes `"ip:port"` as
-  a single string, which doesn't match the bare-IP/bare-port keys used
-  by `_FAKE_INTEL_DB` and the real APIs. Both are now handled in
-  `tools.py` rather than assuming a specific model's calling style,
-  since a weaker/smaller model producing either shape is expected
-  behavior, not an edge case.
+- **`enrich_ioc` accepts `str | list[str | int]`, and splits `"host:port"`
+  before matching**: switching to `llama3.2:3b` surfaced a growing set of
+  real tool-calling quirks, each found via an actual failure, not
+  anticipated in advance — batching multiple IOCs into one call as a
+  list instead of one call per IOC; passing `"ip:port"` as a single
+  string (doesn't match the bare-IP/bare-port keys used by
+  `_FAKE_INTEL_DB` and the real APIs); and mixing types within that
+  list (`['185.220.101.5', 443, ...]`, a numeric port alongside string
+  IOCs), which failed Pydantic validation with a 502 until the list's
+  element type was widened to `str | int`. Handled in `tools.py` rather
+  than assuming a specific model's calling style, since a weaker/smaller
+  model producing any of these shapes is expected behavior — treated as
+  an open-ended robustness surface, not a closed list to handle once.
 - **Human-approval gate via LangGraph `interrupt()`, not a separate
   workflow/state machine**: a new `await_approval` node calls
   `interrupt()` when `report_node` extracts a High/Critical severity from
@@ -201,6 +205,18 @@ to the supervisor. Full diagram in README.md.
   notation, so any real "Format alert" step feeding this pipeline must
   preserve IOCs in native format rather than embedding them in a
   log-line-safe string. See TODO.md's 2026-08-08c note.
+- **Slack notification via a "Post to Slack" node in both n8n
+  workflows, after the report is written to `reports/`**: posts
+  `:shield: SOC triage — <status> · severity: <severity>` plus thread
+  ID and report path to an Incoming Webhook, URL read from
+  `$env.SLACK_WEBHOOK_URL` (`.env`, gitignored) — same
+  `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` requirement the sibling
+  `aigis-detect` project already had to set for reading `$env` in node
+  expressions. `continueOnFail: true` so a Slack outage never blocks
+  report generation (`reports/` is still the durable record). Verified
+  with a direct `curl` to the real webhook (`"ok"` response) and
+  end-to-end through both workflows, confirmed by messages actually
+  arriving in the channel.
 
 ## Constraints
 - IOC enrichment uses real APIs (VirusTotal, AbuseIPDB) when keys are
@@ -229,8 +245,8 @@ to the supervisor. Full diagram in README.md.
 - [x] Test that n8n workflow against a real Wazuh/Elasticsearch alert
       (not just the sample EDR text) — see Key decisions.
 - [x] Publish the triage report — to a `reports/` folder in this repo
-      (see Key decisions). Slack still pending (no credentials);
-      Obsidian was ruled out (see Scope).
+      and a Slack notification, both from the n8n workflows (see Key
+      decisions). Obsidian was ruled out (see Scope).
 - [x] "Awaiting human approval" node for High/Critical reports
       (`await_approval` in `agents.py`, `POST /triage/{thread_id}/approve`
       in `api.py`), plus an n8n webhook for it
