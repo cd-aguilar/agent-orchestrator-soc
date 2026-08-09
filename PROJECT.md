@@ -95,20 +95,15 @@ to the supervisor. Full diagram in README.md.
   2026-08-08 correction for the full story, including a fabricated
   "3m07s" benchmark from an earlier session that never actually ran and
   has since been corrected here.
-- **`enrich_ioc` accepts `str | list[str] | dict[str, str | int]`, and
-  splits `"host:port"` before matching**: switching to `llama3.2:3b`
-  surfaced three real tool-calling quirks, found across two separate
-  real-alert tests — it sometimes batches multiple IOCs into one call as
-  a list instead of one call per IOC, passes `"ip:port"` as a single
-  string (doesn't match the bare-IP/bare-port keys used by
-  `_FAKE_INTEL_DB` and the real APIs), and — with a richer, nested alert
-  JSON passed through unflattened — bundles one entity's related fields
-  into a dict (`{"hostname": ..., "ip": ..., "port": 443}`). All three
-  are now handled in `tools.py` rather than assuming a specific model's
-  calling style, since a weaker/smaller model producing any of these
-  shapes is expected behavior, not an edge case — treated as an
-  open-ended robustness surface (see TODO.md's 2026-08-09 note), not a
-  closed list of three.
+- **`enrich_ioc` accepts `str | list[str]`, and splits `"host:port"`
+  before matching**: switching to `llama3.2:3b` surfaced two real
+  tool-calling quirks — it sometimes batches multiple IOCs into one
+  call as a list instead of one call per IOC, and passes `"ip:port"` as
+  a single string, which doesn't match the bare-IP/bare-port keys used
+  by `_FAKE_INTEL_DB` and the real APIs. Both are now handled in
+  `tools.py` rather than assuming a specific model's calling style,
+  since a weaker/smaller model producing either shape is expected
+  behavior, not an edge case.
 - **Human-approval gate via LangGraph `interrupt()`, not a separate
   workflow/state machine**: a new `await_approval` node calls
   `interrupt()` when `report_node` extracts a High/Critical severity from

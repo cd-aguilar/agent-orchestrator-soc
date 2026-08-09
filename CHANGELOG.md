@@ -27,13 +27,6 @@
   `"host:port"` strings before matching — both are shapes `llama3.2:3b`
   produces that the previous model didn't. Covered by new tests in
   `tests/test_tools.py`.
-- `enrich_ioc` also now accepts `indicator` as a dict of named fields
-  (`{"hostname": ..., "ip": ..., "port": 443}`) — a third tool-calling
-  shape, surfaced by feeding a full nested Wazuh/Sysmon alert JSON
-  through the pipeline unflattened (previous real-alert testing had
-  flattened fields to a log-line string first, which avoided this
-  shape). Without the fix this returned a 502 on a real High-severity
-  alert. Covered by a new test; see TODO.md's 2026-08-09 note.
 - Human-approval gate: a new `await_approval` node (`agents.py`) uses
   LangGraph's `interrupt()` to pause the pipeline whenever the report's
   extracted severity is High/Critical. `build_graph()` now compiles with
