@@ -34,15 +34,54 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const item = $input.item.json;\nconst lines = [\n  '# Triage Report \u2014 ' + (item.alert_id || item.thread_id),\n  '',\n  '- **Status:** ' + item.status,\n  '- **Severity:** ' + (item.severity || 'unknown'),\n  '- **Thread ID:** ' + item.thread_id,\n  '- **Generated:** ' + new Date().toISOString(),\n  '',\n  '## Enrichment',\n  '',\n  item.enrichment || '(none)',\n  '',\n  '## Research',\n  '',\n  item.research || '(none)',\n  '',\n  '## Report',\n  '',\n  item.report || '(none)',\n  ''\n];\nreturn {\n  ...item,\n  markdown_report: lines.join('\\n'),\n  report_file_name: '/reports/' + item.thread_id + '.md'\n};"
+      },
+      "id": "8f2c1a10-1e4b-4b3a-9f1a-000000000004",
+      "name": "Build report markdown",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "markdown_report",
+        "options": {
+          "fileName": "={{ $json.thread_id }}.md"
+        }
+      },
+      "id": "8f2c1a10-1e4b-4b3a-9f1a-000000000005",
+      "name": "Convert to file",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('Build report markdown').item.json.report_file_name }}",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "id": "8f2c1a10-1e4b-4b3a-9f1a-000000000006",
+      "name": "Write report to disk",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseBody": "={{ $('Build report markdown').item.json }}",
         "options": {}
       },
       "id": "8f2c1a10-1e4b-4b3a-9f1a-000000000003",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [750, 300]
+      "position": [800, 300]
     }
   ],
   "connections": {
@@ -50,6 +89,15 @@
       "main": [[{ "node": "POST /triage", "type": "main", "index": 0 }]]
     },
     "POST /triage": {
+      "main": [[{ "node": "Build report markdown", "type": "main", "index": 0 }]]
+    },
+    "Build report markdown": {
+      "main": [[{ "node": "Convert to file", "type": "main", "index": 0 }]]
+    },
+    "Convert to file": {
+      "main": [[{ "node": "Write report to disk", "type": "main", "index": 0 }]]
+    },
+    "Write report to disk": {
       "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
     }
   },

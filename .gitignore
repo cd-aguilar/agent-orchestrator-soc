@@ -13,6 +13,10 @@ venv/
 # Locally generated vector store (rebuilt with ingest_kb.py)
 chroma_db/
 
+# Published triage reports (real alert data — never commit)
+reports/*
+!reports/.gitkeep
+
 # Logs
 *.log
 
