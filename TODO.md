@@ -173,6 +173,36 @@
   for a live SIEM (see the other still-open "OTX AlienVault" /real KB
   items above).
 
+## Notes (2026-08-09) — third enrich_ioc tool-calling shape: dict
+- A separate real-alert test (built independently, not through the
+  `aigis-detect` route above): a full nested Wazuh/Sysmon alert JSON
+  (`rule.mitre`, `agent`, `data.win.eventdata`, `network.destination`)
+  passed as `alert_raw` verbatim, instead of flattened to a log-line
+  string first. This is the shape a naive "just forward the raw
+  document" n8n transform would produce, as opposed to the field-by-field
+  flattening used in the 2026-08-08c test above.
+- That richer input surfaced a third `enrich_ioc` tool-calling shape from
+  `llama3.2:3b`, beyond the list (`b2671df`) and `"ip:port"` string
+  cases already handled: a **dict** of named fields
+  (`{"hostname": ..., "ip": ..., "port": 443}`), bundling one entity's
+  related fields into a single call. `enrich_ioc` only accepted
+  `str | list[str]`, so this failed Pydantic validation and returned a
+  502 — same failure class as the earlier list case, different shape.
+- Fixed in `tools.py`: `enrich_ioc` now also accepts
+  `dict[str, str | int]`, enriching each value individually and labeling
+  it by key. Covered by a new test
+  (`test_enrich_ioc_accepts_dict_of_named_fields`). Re-ran the same
+  nested-JSON alert through the n8n webhook afterward: `HTTP 200`,
+  `status: "pending_approval"`, `severity: "high"`, report written to
+  `reports/wazuh-92099-001.md` — full pipeline, no crash.
+- Takeaway that stacks with 2026-08-08c's: `enrich_ioc`'s job isn't just
+  "handle IPs in dotted notation" but "handle whatever calling
+  convention this model's tool-use lands on for a given input shape" —
+  str, list, or dict are all things `llama3.2:3b` has now actually
+  produced depending on how much structure is in the alert text. A
+  fourth shape is plausible with a different alert or model; treat this
+  as an open-ended robustness surface, not a closed list.
+
 ## Notes (2026-08-08) — regression eval baseline
 - First real run (before any fix) was 3/5: `enrichment_node` sometimes
   called `enrich_ioc("DC01")` instead of `get_host_criticality("DC01")`
